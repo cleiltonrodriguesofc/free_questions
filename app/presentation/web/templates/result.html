@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Resultado do Simulado{% endblock %}
+{% block content %}
+
+{% set pct = attempt.score_pct %}
+{% set circumference = 282 %}
+{% set offset = circumference - (pct / 100 * circumference) %}
+
+<div class="result-hero">
+  <div class="score-circle" id="score-circle">
+    <svg class="score-ring" width="140" height="140" viewBox="0 0 140 140">
+      <circle class="score-ring-bg" cx="70" cy="70" r="45" fill="none" stroke-width="10"/>
+      <circle class="score-ring-fill" cx="70" cy="70" r="45" fill="none" stroke-width="10"
+              stroke-dasharray="{{ circumference }}"
+              stroke-dashoffset="{{ offset }}"
+              id="score-ring-fill"/>
+    </svg>
+    <div class="score-number">{{ pct|round(0)|int }}%</div>
+  </div>
+  <div class="score-label">
+    {% if pct >= 70 %}🏆 Parabéns! Excelente desempenho!
+    {% elif pct >= 50 %}📈 Bom progresso! Continue treinando.
+    {% else %}💪 Não desista! Revise os erros e tente novamente.
+    {% endif %}
+  </div>
+
+  <div class="result-summary">
+    <div class="result-stat">
+      <div class="val success">{{ attempt.correct_answers }}</div>
+      <div class="lbl">Acertos</div>
+    </div>
+    <div class="result-stat">
+      <div class="val danger">{{ attempt.total_questions - attempt.correct_answers }}</div>
+      <div class="lbl">Erros</div>
+    </div>
+    <div class="result-stat">
+      <div class="val">{{ attempt.total_questions }}</div>
+      <div class="lbl">Total</div>
+    </div>
+    {% if attempt.elapsed_s > 0 %}
+    <div class="result-stat">
+      <div class="val" style="font-size:1.2rem;">{{ "%02d:%02d"|format(attempt.elapsed_s // 60, attempt.elapsed_s % 60) }}</div>
+      <div class="lbl">Tempo</div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div style="display:flex;gap:0.75rem;flex-wrap:wrap;justify-content:center;margin-top:1rem;">
+    <a href="/" class="btn btn-ghost" id="btn-home">← Voltar ao Dashboard</a>
+    {% if attempt.subject_id %}
+    <a href="/quiz/subject/{{ attempt.subject_id }}" class="btn btn-primary" id="btn-retry">🔁 Repetir Simulado</a>
+    <a href="/quiz/subject/{{ attempt.subject_id }}?review=true" class="btn btn-accent" id="btn-review-errors">📝 Revisar Erros</a>
+    {% else %}
+    <a href="/quiz/exam" class="btn btn-primary" id="btn-retry">🔁 Novo Simulado</a>
+    {% endif %}
+  </div>
+</div>
+
+{% if attempt.answers %}
+<div class="section-title">Gabarito Comentado</div>
+<div class="answers-list">
+  {% for a in attempt.answers %}
+  <div class="answer-item {% if a.is_correct %}correct{% else %}wrong{% endif %}">
+    <div class="answer-header">
+      <div class="answer-badge {% if a.is_correct %}correct{% else %}wrong{% endif %}">
+        {% if a.is_correct %}✓ Correto{% else %}✗ Errado{% endif %}
+      </div>
+      <div style="font-size:0.8rem;color:var(--text-muted);">Questão {{ loop.index }}{% if a.topic %} · <span style="color:var(--brand-primary-light)">{{ a.topic }}</span>{% endif %}</div>
+      {% if a.needs_review %}
+      <span style="background:hsla(35,90%,55%,0.15);color:var(--brand-warning);border:1px solid hsla(35,90%,55%,0.3);border-radius:20px;padding:0.2rem 0.6rem;font-size:0.72rem;font-weight:700;">📌 Para revisão</span>
+      {% endif %}
+    </div>
+    <div class="answer-q">{{ a.question_statement[:300] }}{% if a.question_statement|length > 300 %}…{% endif %}</div>
+    <div class="answer-detail" style="margin-top:0.6rem;">
+      Sua resposta: <strong style="color:{% if a.is_correct %}var(--brand-success){% else %}var(--brand-danger){% endif %}">{{ a.selected_label }}</strong>
+      {% if not a.is_correct and a.correct_label %}
+      &nbsp;·&nbsp; Gabarito: <strong style="color:var(--brand-success)">{{ a.correct_label }}</strong>
+      {% endif %}
+    </div>
+    {% if a.explanation %}
+    <div class="answer-explanation">
+      <div style="font-size:0.72rem;font-weight:700;color:var(--brand-accent);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.4rem;">
+        {% if a.is_correct %}💡 Por que está correta{% else %}🔍 Por que você errou{% endif %}
+      </div>
+      {{ a.explanation }}
+    </div>
+    {% elif not a.is_correct %}
+    <div style="background:hsla(35,90%,55%,0.08);border:1px solid hsla(35,90%,55%,0.2);border-radius:8px;padding:0.65rem 0.85rem;margin-top:0.75rem;font-size:0.82rem;color:var(--text-muted);">
+      💡 Revise este conteúdo: a explicação comentada não estava disponível nesta questão.
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<script>
+// animar o anel de score
+window.addEventListener('load', () => {
+  const ring = document.getElementById('score-ring-fill');
+  if (ring) {
+    ring.style.strokeDashoffset = {{ circumference }};
+    setTimeout(() => {
+      ring.style.transition = 'stroke-dashoffset 1.2s ease';
+      ring.style.strokeDashoffset = {{ offset }};
+    }, 200);
+  }
+});
+</script>
+{% endblock %}

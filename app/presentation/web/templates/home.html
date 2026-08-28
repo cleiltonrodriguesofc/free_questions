@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+
+<div class="dashboard-hero">
+  <div class="hero-text">
+    <h1>Olá, <span>{{ user.username }}</span> 👋</h1>
+    <p>Continue treinando para o BACEN e TCE-MA.</p>
+  </div>
+  <div class="hero-stats">
+    <div class="hero-stat">
+      <div class="value">{{ stats.overall_pct }}%</div>
+      <div class="label">acerto geral</div>
+    </div>
+    <div class="hero-stat">
+      <div class="value">{{ stats.overall_total }}</div>
+      <div class="label">questões respondidas</div>
+    </div>
+    <div class="hero-stat">
+      <div class="value">{{ stats.attempts_count }}</div>
+      <div class="label">simulados feitos</div>
+    </div>
+  </div>
+  <div class="hero-actions">
+    <a href="/quiz/exam" class="btn btn-primary btn-lg" id="btn-full-exam">🎯 Simulado Completo</a>
+    <a href="/quiz/review" class="btn btn-ghost" id="btn-review">📝 Revisão de Erros</a>
+    <a href="/stats" class="btn btn-ghost" id="btn-stats">📊 Ver Desempenho</a>
+  </div>
+</div>
+
+{% if stats.weak_subjects %}
+<div style="margin-bottom:2rem;">
+  <div class="section-title">⚠️ Pontos Fracos — Foco Prioritário</div>
+  <div class="subjects-grid">
+    {% for s in stats.weak_subjects %}
+    {% if s.subject_id %}
+    <div class="subject-card">
+      <div class="subject-name">{{ s.name }}</div>
+      <div style="display:flex;align-items:center;gap:0.5rem;">
+        <div class="subject-progress" style="flex:1">
+          <div class="subject-progress-bar" style="width:{{ s.pct }}%"></div>
+        </div>
+        <span class="subject-pct bad">{{ s.pct }}%</span>
+      </div>
+      <div class="subject-actions">
+        <a href="/quiz/subject/{{ s.subject_id }}?review=true" class="btn btn-danger btn-full" style="font-size:0.8rem;padding:0.4rem 0.5rem;" id="btn-review-{{ s.subject_id }}">Revisar Erros</a>
+        <a href="/quiz/subject/{{ s.subject_id }}" class="btn btn-ghost" style="font-size:0.8rem;padding:0.4rem 0.5rem;" id="btn-quiz-{{ s.subject_id }}">Treinar</a>
+      </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% for phase_name, subjects in phases.items() %}
+<div class="phase-section">
+  <div class="section-title">{{ phase_name }}</div>
+  <div class="subjects-grid">
+    {% for s in subjects %}
+    {% set subj_stats = stats.by_subject | selectattr('subject_id', 'equalto', s.id) | first | default(none) %}
+    <div class="subject-card" id="card-subject-{{ s.id }}">
+      <div>
+        <div class="subject-name">{{ s.name }}</div>
+        <div class="subject-meta">
+          {% if s.question_count > 0 %}
+            {{ s.question_count }} questões disponíveis
+          {% else %}
+            📥 Questões sendo carregadas
+          {% endif %}
+        </div>
+      </div>
+
+      {% if subj_stats %}
+      <div style="display:flex;align-items:center;gap:0.5rem;">
+        <div class="subject-progress" style="flex:1">
+          <div class="subject-progress-bar" style="width:{{ subj_stats.pct }}%"></div>
+        </div>
+        <span class="subject-pct {% if subj_stats.pct >= 70 %}good{% elif subj_stats.pct >= 50 %}ok{% else %}bad{% endif %}">
+          {{ subj_stats.pct }}%
+        </span>
+      </div>
+      {% else %}
+      <div style="display:flex;align-items:center;gap:0.5rem;">
+        <div class="subject-progress" style="flex:1">
+          <div class="subject-progress-bar" style="width:0%"></div>
+        </div>
+        <span class="subject-pct" style="color:var(--text-muted)">—</span>
+      </div>
+      {% endif %}
+
+      {% if s.description %}
+      <div style="font-size:0.78rem;color:var(--text-muted);line-height:1.4;">{{ s.description }}</div>
+      {% endif %}
+
+      <div class="subject-actions">
+        {% if s.question_count > 0 %}
+        <a href="/quiz/subject/{{ s.id }}" class="btn btn-primary btn-full" style="font-size:0.82rem;" id="btn-start-{{ s.id }}">▶ Iniciar Simulado</a>
+        {% if subj_stats and subj_stats.total > 0 %}
+        <a href="/quiz/subject/{{ s.id }}?review=true" class="btn btn-ghost" style="font-size:0.82rem;" id="btn-errors-{{ s.id }}">Revisar Erros</a>
+        {% endif %}
+        {% else %}
+        <span class="btn btn-ghost btn-full" style="font-size:0.82rem;opacity:0.5;cursor:not-allowed;">Sem questões</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endfor %}
+
+{% if not phases %}
+<div class="empty-state">
+  <div class="emoji">📦</div>
+  <p>Nenhuma disciplina encontrada.<br>Execute o seed para carregar as questões.</p>
+  <code style="display:block;margin-top:1rem;font-size:0.8rem;color:var(--text-muted)">python -m app.core.infrastructure.seeds.seed</code>
+</div>
+{% endif %}
+
+{% endblock %}

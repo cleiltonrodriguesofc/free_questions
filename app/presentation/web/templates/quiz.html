@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}{{ mode_label }}{% endblock %}
+{% block content %}
+
+<div class="quiz-header">
+  <div>
+    <h1 class="quiz-title">{{ mode_label }}</h1>
+    <div class="quiz-meta">{{ questions|length }} questões
+      {% if attempt.time_limit_s > 0 %}
+      · Tempo limite: {{ (attempt.time_limit_s // 60) }} min
+      {% endif %}
+    </div>
+  </div>
+  <div class="quiz-timer" id="quiz-timer">
+    ⏱ <span id="timer-display">{{ "%02d:%02d"|format(attempt.time_limit_s // 60, attempt.time_limit_s % 60) if attempt.time_limit_s else "∞" }}</span>
+  </div>
+</div>
+
+<div class="quiz-progress">
+  <span id="progress-label">Questão <strong>1</strong> de {{ questions|length }}</span>
+  <div class="progress-bar">
+    <div class="progress-fill" id="progress-fill" style="width:{{ (1/questions|length*100)|round(1) }}%"></div>
+  </div>
+</div>
+
+<form method="post" action="/quiz/submit/{{ attempt.id }}" id="quiz-form">
+  <input type="hidden" name="answers_json" id="answers-json" value="{}"/>
+  <input type="hidden" name="elapsed_s" id="elapsed-s" value="0"/>
+
+  {% for question in questions %}
+  <div class="question-card" id="question-{{ loop.index }}" style="display:{% if loop.first %}block{% else %}none{% endif %}">
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;">
+      <div class="question-number">{{ loop.index }}</div>
+      {% if question.source %}
+      <span class="question-source">{{ question.source }}</span>
+      {% endif %}
+    </div>
+
+    <div class="question-statement">{{ question.statement }}</div>
+
+    <div class="options-list" id="options-{{ question.id }}">
+      {% for option in question.options %}
+      <label class="option-label" id="opt-{{ question.id }}-{{ option.label }}" for="q{{ question.id }}_{{ option.label }}">
+        <input type="radio" id="q{{ question.id }}_{{ option.label }}"
+               name="q_{{ question.id }}" value="{{ option.label }}"
+               data-qid="{{ question.id }}"
+               onchange="selectOption({{ question.id }}, '{{ option.label }}')"/>
+        <span class="option-key">{{ option.label }}</span>
+        <span class="option-text">{{ option.text }}</span>
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+
+  <!-- Navegação -->
+  <div class="quiz-nav">
+    <button type="button" class="btn btn-ghost" id="btn-prev" onclick="prevQuestion()" style="display:none">← Anterior</button>
+
+    <div class="quiz-dots">
+      {% for question in questions %}
+      <div class="quiz-dot {% if loop.first %}current{% endif %}"
+           id="dot-{{ loop.index }}"
+           data-idx="{{ loop.index }}"
+           onclick="goToQuestion({{ loop.index }})"
+           title="Questão {{ loop.index }}"></div>
+      {% endfor %}
+    </div>
+
+    <button type="button" class="btn btn-primary" id="btn-next" onclick="nextQuestion()">Próxima →</button>
+    <button type="submit" class="btn btn-accent btn-lg" id="btn-submit" style="display:none" onclick="onSubmit()">
+      ✅ Finalizar Simulado
+    </button>
+  </div>
+</form>
+
+<script>
+const TOTAL = {{ questions|length }};
+const TIME_LIMIT = {{ attempt.time_limit_s }};
+const answers = {};
+let currentQ = 1;
+let elapsed = 0;
+
+// Construir mapa question_id → índice
+const questionIds = [{% for q in questions %}{{ q.id }}{% if not loop.last %},{% endif %}{% endfor %}];
+
+// Timer
+let timerInterval;
+if (TIME_LIMIT > 0) {
+  let remaining = TIME_LIMIT;
+  timerInterval = setInterval(() => {
+    elapsed++;
+    remaining--;
+    if (remaining <= 0) {
+      clearInterval(timerInterval);
+      onSubmit();
+      document.getElementById('quiz-form').submit();
+    }
+    const mins = Math.floor(remaining / 60);
+    const secs = remaining % 60;
+    const display = `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+    document.getElementById('timer-display').textContent = display;
+    const timerEl = document.getElementById('quiz-timer');
+    if (remaining <= 120) timerEl.classList.add('urgent');
+  }, 1000);
+} else {
+  setInterval(() => { elapsed++; }, 1000);
+}
+
+function goToQuestion(idx) {
+  document.getElementById(`question-${currentQ}`).style.display = 'none';
+  document.getElementById(`dot-${currentQ}`).classList.remove('current');
+
+  currentQ = idx;
+  document.getElementById(`question-${currentQ}`).style.display = 'block';
+  document.getElementById(`dot-${currentQ}`).classList.add('current');
+
+  const pct = (currentQ / TOTAL * 100).toFixed(1);
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-label').innerHTML =
+    `Questão <strong>${currentQ}</strong> de ${TOTAL}`;
+
+  document.getElementById('btn-prev').style.display = currentQ > 1 ? 'inline-flex' : 'none';
+  const isLast = currentQ === TOTAL;
+  document.getElementById('btn-next').style.display = isLast ? 'none' : 'inline-flex';
+  document.getElementById('btn-submit').style.display = isLast ? 'inline-flex' : 'none';
+}
+
+function nextQuestion() { if (currentQ < TOTAL) goToQuestion(currentQ + 1); }
+function prevQuestion() { if (currentQ > 1) goToQuestion(currentQ - 1); }
+
+function selectOption(qid, label) {
+  answers[qid] = label;
+  document.getElementById('answers-json').value = JSON.stringify(answers);
+  // atualizar visual
+  document.querySelectorAll(`#options-${qid} .option-label`).forEach(el => el.classList.remove('selected'));
+  document.getElementById(`opt-${qid}-${label}`).classList.add('selected');
+  // marcar dot como respondido
+  const qIdx = questionIds.indexOf(qid) + 1;
+  const dot = document.getElementById(`dot-${qIdx}`);
+  if (dot) { dot.classList.remove('current'); dot.classList.add('answered'); }
+  // reatualizar cor do current
+  document.getElementById(`dot-${currentQ}`).classList.add('current');
+}
+
+function onSubmit() {
+  clearInterval(timerInterval);
+  document.getElementById('elapsed-s').value = elapsed;
+  document.getElementById('answers-json').value = JSON.stringify(answers);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="fw-bold text-primary mb-3">Banco de Questões</h2>
+        <p class="text-muted">Explore todas as questões disponíveis no sistema.</p>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                <form method="GET" action="/questions/" class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label for="subject_id" class="form-label">Disciplina</label>
+                        <select class="form-select" id="subject_id" name="subject_id">
+                            <option value="">Todas as Disciplinas</option>
+                            {% for subject in subjects %}
+                            <option value="{{ subject.id }}" {% if current_subject_id == subject.id %}selected{% endif %}>
+                                {{ subject.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="topic" class="form-label">Conteúdo (Tópico)</label>
+                        <select class="form-select" id="topic" name="topic">
+                            <option value="">Todos os Conteúdos</option>
+                            {% for t in topics %}
+                            <option value="{{ t }}" {% if current_topic == t %}selected{% endif %}>
+                                {{ t }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="source" class="form-label">Banca / Fonte</label>
+                        <select class="form-select" id="source" name="source">
+                            <option value="">Todas as Bancas</option>
+                            {% for s in sources %}
+                            <option value="{{ s }}" {% if current_source == s %}selected{% endif %}>
+                                {{ s }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-funnel"></i> Filtrar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <p class="mb-3 text-secondary">
+            Encontradas <strong>{{ total }}</strong> questões. Página <strong>{{ page }}</strong> de <strong>{{ total_pages }}</strong>.
+        </p>
+
+        {% if questions %}
+            {% for q in questions %}
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <span class="badge bg-secondary">#{{ q.id }}</span>
+                    <small class="text-muted">{{ q.subject.name }} &bull; {{ q.topic }} &bull; {{ q.source }}</small>
+                </div>
+                <div class="card-body">
+                    <p class="card-text mb-4" style="white-space: pre-wrap;">{{ q.statement }}</p>
+                    
+                    <div class="list-group mb-3">
+                        {% for opt in q.options %}
+                        <div class="list-group-item {% if opt.is_correct %}list-group-item-success{% endif %}">
+                            <strong>{{ opt.label }})</strong> {{ opt.text }}
+                            {% if opt.is_correct %}
+                            <span class="badge bg-success float-end">Gabarito</span>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    {% if q.explanation %}
+                    <div class="alert alert-info mt-3 mb-0">
+                        <strong>Comentário:</strong> {{ q.explanation }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="alert alert-warning">
+                Nenhuma questão encontrada com os filtros atuais.
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if total_pages > 1 %}
+<nav aria-label="Navegação de página" class="mt-4">
+    <ul class="pagination justify-content-center">
+        <!-- Anterior -->
+        <li class="page-item {% if page == 1 %}disabled{% endif %}">
+            <a class="page-link" href="?page={{ page - 1 }}{% if current_subject_id %}&subject_id={{ current_subject_id }}{% endif %}{% if current_topic %}&topic={{ current_topic }}{% endif %}{% if current_source %}&source={{ current_source }}{% endif %}">Anterior</a>
+        </li>
+        
+        <li class="page-item disabled">
+            <span class="page-link">Página {{ page }} de {{ total_pages }}</span>
+        </li>
+        
+        <!-- Próxima -->
+        <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+            <a class="page-link" href="?page={{ page + 1 }}{% if current_subject_id %}&subject_id={{ current_subject_id }}{% endif %}{% if current_topic %}&topic={{ current_topic }}{% endif %}{% if current_source %}&source={{ current_source }}{% endif %}">Próxima</a>
+        </li>
+    </ul>
+</nav>
+{% endif %}
+
+{% endblock %}

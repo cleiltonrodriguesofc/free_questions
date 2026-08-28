@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Meu Desempenho{% endblock %}
+{% block content %}
+
+<h1 style="font-size:1.5rem;margin-bottom:1.5rem;">📊 Desempenho de <span style="color:var(--brand-primary-light)">{{ user.username }}</span></h1>
+
+<!-- Cards gerais -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="big">{{ stats.overall_pct }}%</div>
+    <div class="lbl">Acerto Geral</div>
+  </div>
+  <div class="stat-card">
+    <div class="big">{{ stats.overall_correct }}</div>
+    <div class="lbl">Questões Corretas</div>
+  </div>
+  <div class="stat-card">
+    <div class="big">{{ stats.overall_total }}</div>
+    <div class="lbl">Total Respondidas</div>
+  </div>
+  <div class="stat-card">
+    <div class="big">{{ stats.attempts_count }}</div>
+    <div class="lbl">Simulados Feitos</div>
+  </div>
+</div>
+
+{% if stats.by_subject %}
+<div class="section-title">Acerto por Disciplina</div>
+<div class="card" style="margin-bottom:2rem;">
+  <div class="bar-chart">
+    {% for s in stats.by_subject | sort(attribute='pct') %}
+    {% if s.subject_id %}
+    <div class="bar-row">
+      <div class="bar-name" title="{{ s.name }}">{{ s.name }}</div>
+      <div class="bar-track">
+        <div class="bar-fill {% if s.pct >= 70 %}good{% elif s.pct >= 50 %}ok{% else %}bad{% endif %}"
+             style="width:{{ s.pct }}%"></div>
+      </div>
+      <div class="bar-pct {% if s.pct >= 70 %}good{% elif s.pct >= 50 %}ok{% else %}bad{% endif %}"
+           style="color:{% if s.pct >= 70 %}var(--brand-success){% elif s.pct >= 50 %}var(--brand-warning){% else %}var(--brand-danger){% endif %}">
+        {{ s.pct }}%
+      </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+</div>
+
+<div class="section-title">Detalhe por Disciplina</div>
+<div style="overflow-x:auto;margin-bottom:2rem;">
+  <table style="width:100%;border-collapse:collapse;font-size:0.875rem;">
+    <thead>
+      <tr style="color:var(--text-muted);text-align:left;border-bottom:1px solid var(--border);">
+        <th style="padding:0.5rem 0.75rem;">Disciplina</th>
+        <th style="padding:0.5rem 0.75rem;text-align:center;">Respondidas</th>
+        <th style="padding:0.5rem 0.75rem;text-align:center;">Acertos</th>
+        <th style="padding:0.5rem 0.75rem;text-align:center;">Acerto %</th>
+        <th style="padding:0.5rem 0.75rem;text-align:center;">Ação</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in stats.by_subject %}
+      {% if s.subject_id %}
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:0.65rem 0.75rem;font-weight:500;">{{ s.name }}</td>
+        <td style="padding:0.65rem 0.75rem;text-align:center;color:var(--text-secondary);">{{ s.total }}</td>
+        <td style="padding:0.65rem 0.75rem;text-align:center;color:var(--brand-success);">{{ s.correct }}</td>
+        <td style="padding:0.65rem 0.75rem;text-align:center;font-weight:700;
+            color:{% if s.pct >= 70 %}var(--brand-success){% elif s.pct >= 50 %}var(--brand-warning){% else %}var(--brand-danger){% endif %}">
+          {{ s.pct }}%
+        </td>
+        <td style="padding:0.65rem 0.75rem;text-align:center;">
+          <a href="/quiz/subject/{{ s.subject_id }}" class="btn btn-ghost" style="font-size:0.78rem;padding:0.3rem 0.6rem;">Treinar</a>
+        </td>
+      </tr>
+      {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-state">
+  <div class="emoji">🎯</div>
+  <p>Você ainda não fez nenhum simulado.<br>Comece agora no dashboard!</p>
+  <a href="/" class="btn btn-primary" style="margin-top:1rem;">Ir para o Dashboard</a>
+</div>
+{% endif %}
+
+{% if stats.by_topic %}
+<div class="section-title">📌 Desempenho por Tópico (Conteúdo)</div>
+<div class="card" style="margin-bottom:2rem;">
+  {% if stats.by_topic | length > 15 %}
+  <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.75rem;">Exibindo os 15 tópicos com menor acerto.</div>
+  {% endif %}
+  <div class="bar-chart">
+    {% for t in stats.by_topic[:15] %}
+    <div class="bar-row">
+      <div class="bar-name" title="{{ t.topic }}">{{ t.topic[:45] }}{% if t.topic|length > 45 %}…{% endif %}</div>
+      <div class="bar-track">
+        <div class="bar-fill {% if t.pct >= 70 %}good{% elif t.pct >= 50 %}ok{% else %}bad{% endif %}"
+             style="width:{{ t.pct }}%"></div>
+      </div>
+      <div class="bar-pct" style="color:{% if t.pct >= 70 %}var(--brand-success){% elif t.pct >= 50 %}var(--brand-warning){% else %}var(--brand-danger){% endif %}">
+        {{ t.pct }}% <span style="font-weight:400;color:var(--text-muted)">({{ t.total }}q)</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if stats.recent_attempts %}
+<div class="section-title">Histórico Recente</div>
+<div class="history-list">
+  {% for a in stats.recent_attempts %}
+  <div class="history-item">
+    <div class="history-mode">
+      {% if a.mode == 'full_exam' %}🎯 Simulado Completo
+      {% elif a.mode == 'review' %}📝 Revisão de Erros
+      {% else %}📚 {{ a.subject_name or 'Simulado' }}{% endif %}
+    </div>
+    <div class="history-score {% if a.score_pct >= 70 %}good{% elif a.score_pct >= 50 %}ok{% else %}bad{% endif %}">
+      {{ a.score_pct }}%
+    </div>
+    <div style="color:var(--text-muted);font-size:0.8rem;">{{ a.correct_answers }}/{{ a.total_questions }}</div>
+    <a href="/result/{{ a.id }}" class="btn btn-ghost" style="font-size:0.78rem;padding:0.3rem 0.6rem;">Ver →</a>
+    <div class="history-date">
+      {{ a.started_at.strftime('%d/%m %H:%M') if a.started_at else '—' }}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% endblock %}

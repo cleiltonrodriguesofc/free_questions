@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Login{% endblock %}
+{% block content %}
+<div class="auth-wrapper">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="brand-icon">⚡</div>
+      <h1>BACEN Study</h1>
+      <p>Simulador de questões para BACEN e TCE-MA</p>
+    </div>
+
+    {% if error %}
+    <div class="alert-error" role="alert">{{ error }}</div>
+    {% endif %}
+
+    {% if request.query_params.get('registered') %}
+    <div style="background:hsla(142,65%,48%,0.12);border:1px solid hsla(142,65%,48%,0.3);border-radius:8px;padding:0.75rem 1rem;color:hsl(142,65%,65%);font-size:0.875rem;margin-bottom:1.25rem;">
+      ✅ Conta criada com sucesso! Faça login para continuar.
+    </div>
+    {% endif %}
+
+    <form method="post" action="/login" id="login-form">
+      <div class="form-group">
+        <label class="form-label" for="username">Usuário</label>
+        <input class="form-input" type="text" id="username" name="username" placeholder="seu_usuario" required autocomplete="username"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="password">Senha</label>
+        <input class="form-input" type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password"/>
+      </div>
+      <button class="btn btn-primary btn-full btn-lg" type="submit" id="login-btn">Entrar →</button>
+    </form>
+
+    <div class="auth-footer">
+      Não tem conta? <a href="/register">Criar conta gratuita</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
