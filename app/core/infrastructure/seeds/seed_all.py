@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 # Adiciona raiz do projeto ao PYTHONPATH
-PROJECT_ROOT = Path(__file__).resolve().parents[5]
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from app.core.infrastructure.database.session import init_db, SessionLocal
@@ -50,7 +50,8 @@ def run_seed_all():
                 
         # Fallback de segurança se não achar a pasta "BACEN - "
         if not subject_name:
-            subject_name = pdf_path.parent.name.replace("BACEN - ", "").strip()
+            logger.warning(f"Ignorando PDF fora da estrutura esperada (sem 'BACEN - '): {pdf_path}")
+            continue
         
         # Pega a fase da pasta avô ou bisavô
         phase_name = "Geral"

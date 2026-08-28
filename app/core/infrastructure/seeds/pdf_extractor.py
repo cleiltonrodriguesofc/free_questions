@@ -279,11 +279,13 @@ def _parse_block(block: str, source: str, topic: str = "") -> Optional[dict]:
     if len(explanation) > 2000:
         explanation = explanation[:2000] + "…"
 
+    source_found = _extract_source_from_statement(statement, source)
+
     return {
         "statement": statement,
         "options": options[:5],
         "explanation": explanation,
-        "source": source,
+        "source": source_found,
         "topic": topic,
     }
 
@@ -397,11 +399,13 @@ def _parse_sliding_window(text: str, source: str) -> list[dict]:
                         for o in opts:
                             o["is_correct"] = o["label"] == gab
 
+                    source_found = _extract_source_from_statement(statement, source)
+
                     questions.append({
                         "statement": statement,
                         "options": opts,
                         "explanation": "\n".join(explanation_lines).strip()[:2000],
-                        "source": source,
+                        "source": source_found,
                         "topic": current_topic,
                     })
                 i = j
@@ -409,3 +413,15 @@ def _parse_sliding_window(text: str, source: str) -> list[dict]:
         i += 1
 
     return questions
+
+
+def _extract_source_from_statement(statement: str, default_source: str) -> str:
+    # Procura explicitamente por siglas de bancas conhecidas no início do enunciado
+    m = re.search(r"^\s*\(.*?\b(CESPE|CEBRASPE|FGV|FCC|VUNESP|QUADRIX|CESGRANRIO|IDIB|IBFC|IADES)\b.*?\)", statement, re.IGNORECASE)
+    if m:
+        banca = m.group(1).upper()
+        if banca == "CESPE":
+            return "CEBRASPE"
+        return banca
+        
+    return default_source
