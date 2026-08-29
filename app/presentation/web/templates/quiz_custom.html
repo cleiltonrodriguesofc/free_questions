@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}Montar Simulado{% endblock %}
+{% block content %}
+
+<div style="max-width:720px;margin:0 auto;">
+
+  <div style="margin-bottom:2rem;">
+    <h1 style="font-size:1.6rem;font-weight:700;color:var(--text-primary);margin-bottom:0.4rem;">
+      ✏️ Montar Simulado Customizado
+    </h1>
+    <p style="color:var(--text-muted);font-size:0.9rem;">
+      Escolha quantas questões de cada disciplina você quer treinar. O sistema sorteia aleatoriamente.
+    </p>
+  </div>
+
+  <!-- Atalhos rápidos -->
+  <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:1.75rem;">
+    <button type="button" class="btn btn-ghost" style="font-size:0.82rem;" onclick="setPreset('p1')">
+      📋 P1 — Gerais (40q)
+    </button>
+    <button type="button" class="btn btn-ghost" style="font-size:0.82rem;" onclick="setPreset('p2')">
+      📋 P2 — Específicas (60q)
+    </button>
+    <button type="button" class="btn btn-ghost" style="font-size:0.82rem;" onclick="setPreset('tce')">
+      🏛️ Completo TCE (100q)
+    </button>
+    <button type="button" class="btn btn-ghost" style="font-size:0.82rem;color:var(--brand-danger);" onclick="clearAll()">
+      🗑️ Limpar tudo
+    </button>
+  </div>
+
+  <form method="post" action="/quiz/custom" id="custom-form">
+    <input type="hidden" name="quantities" id="quantities-input" value="{}"/>
+
+    <div style="background:var(--surface-card);border:1px solid var(--border-subtle);border-radius:16px;overflow:hidden;margin-bottom:1.5rem;">
+      {% for s in subjects %}
+      <div class="custom-row" id="row-{{ s.id }}" style="display:flex;align-items:center;gap:1rem;padding:0.9rem 1.2rem;border-bottom:1px solid var(--border-subtle);transition:background 0.15s;"
+           onmouseenter="this.style.background='var(--surface-hover)'" onmouseleave="this.style.background=''">
+
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;color:var(--text-primary);font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+            {{ s.name }}
+          </div>
+          <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.1rem;">
+            {{ s.question_count }} questões disponíveis
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:0.5rem;">
+          <button type="button" class="qty-btn" onclick="adjust({{ s.id }}, -5)" style="padding:0.25rem 0.5rem;font-size:0.8rem;">-5</button>
+          <button type="button" class="qty-btn" onclick="adjust({{ s.id }}, -1)" style="padding:0.25rem 0.5rem;font-size:0.8rem;">-1</button>
+
+          <input type="number" min="0" max="{{ s.question_count }}"
+                 id="qty-{{ s.id }}" value="0"
+                 data-max="{{ s.question_count }}"
+                 onchange="updateQty({{ s.id }})"
+                 style="width:56px;text-align:center;padding:0.3rem;border:1px solid var(--border-subtle);border-radius:8px;background:var(--surface-input);color:var(--text-primary);font-size:0.9rem;"/>
+
+          <button type="button" class="qty-btn" onclick="adjust({{ s.id }}, 1)" style="padding:0.25rem 0.5rem;font-size:0.8rem;">+1</button>
+          <button type="button" class="qty-btn" onclick="adjust({{ s.id }}, 5)" style="padding:0.25rem 0.5rem;font-size:0.8rem;">+5</button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Totalizador -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;background:var(--surface-card);border:1px solid var(--border-subtle);border-radius:12px;margin-bottom:1.5rem;">
+      <div>
+        <div style="font-size:0.8rem;color:var(--text-muted);">Total selecionado</div>
+        <div style="font-size:1.6rem;font-weight:700;color:var(--brand-primary);" id="total-count">0 questões</div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-lg" id="btn-start" disabled onclick="buildPayload()">
+        ▶ Iniciar Simulado
+      </button>
+    </div>
+
+  </form>
+</div>
+
+<style>
+.qty-btn {
+  background: var(--surface-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.6rem;
+  transition: background 0.15s;
+}
+.qty-btn:hover { background: var(--surface-hover); color: var(--text-primary); }
+</style>
+
+<script>
+/* subjects disponíveis: {id: max} */
+const SUBJECTS = {
+  {% for s in subjects %}{{ s.id }}: {{ s.question_count }}{% if not loop.last %},{% endif %}{% endfor %}
+};
+
+/* Preset TCE-MA — Auditor Controle Externo (P1 gerais + P2 específicas) */
+/* P1 = 40q, P2 = 60q. Ajuste os IDs conforme sua cargo */
+const PRESETS = {
+  p1:  { {% for s in subjects %}{% if s.slug in ['portuguese', 'math-and-logic', 'english'] %}{{ s.id }}: 13, {% endif %}{% endfor %} },
+  p2:  { {% for s in subjects %}{% if s.slug not in ['portuguese', 'math-and-logic', 'english'] %}{{ s.id }}: 5, {% endif %}{% endfor %} },
+  tce: { {% for s in subjects %}{% if s.slug in ['portuguese', 'math-and-logic', 'english'] %}{{ s.id }}: 13, {% else %}{{ s.id }}: 5, {% endif %}{% endfor %} },
+};
+
+function adjust(id, delta) {
+  const inp = document.getElementById(`qty-${id}`);
+  const max = parseInt(inp.dataset.max);
+  const val = Math.max(0, Math.min(max, parseInt(inp.value || 0) + delta));
+  inp.value = val;
+  updateTotal();
+}
+
+function updateQty(id) {
+  const inp = document.getElementById(`qty-${id}`);
+  const max = parseInt(inp.dataset.max);
+  inp.value = Math.max(0, Math.min(max, parseInt(inp.value || 0)));
+  updateTotal();
+}
+
+function updateTotal() {
+  let total = 0;
+  Object.keys(SUBJECTS).forEach(id => {
+    total += parseInt(document.getElementById(`qty-${id}`).value || 0);
+  });
+  document.getElementById('total-count').textContent = total + ' questão' + (total !== 1 ? 'ões' : '');
+  document.getElementById('btn-start').disabled = total === 0;
+}
+
+function setPreset(name) {
+  clearAll(false);
+  const preset = PRESETS[name] || {};
+  Object.entries(preset).forEach(([id, qty]) => {
+    const inp = document.getElementById(`qty-${id}`);
+    if (inp) {
+      const max = parseInt(inp.dataset.max);
+      inp.value = Math.min(qty, max);
+    }
+  });
+  updateTotal();
+}
+
+function clearAll(update=true) {
+  Object.keys(SUBJECTS).forEach(id => {
+    document.getElementById(`qty-${id}`).value = 0;
+  });
+  if (update) updateTotal();
+}
+
+function buildPayload() {
+  const payload = {};
+  Object.keys(SUBJECTS).forEach(id => {
+    const v = parseInt(document.getElementById(`qty-${id}`).value || 0);
+    if (v > 0) payload[id] = v;
+  });
+  document.getElementById('quantities-input').value = JSON.stringify(payload);
+}
+</script>
+
+{% endblock %}

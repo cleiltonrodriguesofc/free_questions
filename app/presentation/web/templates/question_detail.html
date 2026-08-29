@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}{{ question.subject.name if question.subject else "Questão" }} — Banco de Questões{% endblock %}
+{% block content %}
+
+<div style="max-width:760px;margin:0 auto;">
+
+  <!-- Navegação contextual -->
+  <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1.5rem;font-size:0.82rem;color:var(--text-muted);">
+    <a href="/questions" style="color:var(--text-muted);text-decoration:none;">🗂️ Banco de Questões</a>
+    {% if question.subject %}
+    <span>›</span>
+    <a href="/questions?subject_id={{ question.subject.id }}" style="color:var(--text-muted);text-decoration:none;">{{ question.subject.name }}</a>
+    {% endif %}
+    <span>›</span>
+    <span style="color:var(--text-primary);">Questão #{{ question.id }}</span>
+  </div>
+
+  <!-- Card da questão -->
+  <div class="question-card" style="display:block;margin-bottom:1.5rem;">
+
+    <!-- Meta: disciplina, fonte, ano -->
+    <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:1rem;">
+      {% if question.subject %}
+      <span style="background:hsla(var(--brand-primary-hsl),0.15);color:var(--brand-primary-light);border-radius:20px;padding:0.2rem 0.75rem;font-size:0.78rem;font-weight:600;">
+        {{ question.subject.name }}
+      </span>
+      {% endif %}
+      {% if question.topic %}
+      <span style="background:var(--surface-input);color:var(--text-muted);border-radius:20px;padding:0.2rem 0.75rem;font-size:0.78rem;">
+        {{ question.topic }}
+      </span>
+      {% endif %}
+      {% if question.source %}
+      <span class="question-source">{{ question.source }}</span>
+      {% endif %}
+      {% if question.year %}
+      <span style="color:var(--text-muted);font-size:0.78rem;">{{ question.year }}</span>
+      {% endif %}
+    </div>
+
+    <!-- Enunciado -->
+    <div class="question-statement" style="margin-bottom:1.5rem;">{{ question.statement }}</div>
+
+    <!-- Opções -->
+    <div class="options-list" id="options-list">
+      {% for opt in question.options %}
+      <label class="option-label" id="opt-{{ opt.label }}"
+             for="radio-{{ opt.label }}"
+             onclick="checkAnswer('{{ opt.label }}', {{ 'true' if opt.is_correct else 'false' }})">
+        <input type="radio" id="radio-{{ opt.label }}" name="answer" value="{{ opt.label }}" style="display:none;"/>
+        <span class="option-key">{{ opt.label }}</span>
+        <span class="option-text">{{ opt.text }}</span>
+      </label>
+      {% endfor %}
+    </div>
+
+    <!-- Feedback (oculto até responder) -->
+    <div id="feedback-panel" style="display:none;margin-top:1.25rem;">
+      <div id="feedback-badge" style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.5rem 1rem;border-radius:20px;font-weight:700;font-size:0.9rem;margin-bottom:1rem;"></div>
+
+      {% if question.explanation %}
+      <div class="answer-explanation" id="explanation-box">
+        <div style="font-size:0.72rem;font-weight:700;color:var(--brand-accent);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.4rem;">
+          💡 Comentário
+        </div>
+        {{ question.explanation }}
+      </div>
+      {% endif %}
+
+      <!-- Navegação para próxima questão -->
+      <div style="display:flex;gap:0.75rem;margin-top:1.25rem;flex-wrap:wrap;">
+        {% if prev_id %}
+        <a href="/questions/{{ prev_id }}{{ '?subject_id=' ~ subject_id if subject_id else '' }}"
+           class="btn btn-ghost" id="btn-prev-q">← Anterior</a>
+        {% endif %}
+        {% if next_id %}
+        <a href="/questions/{{ next_id }}{{ '?subject_id=' ~ subject_id if subject_id else '' }}"
+           class="btn btn-primary" id="btn-next-q">Próxima →</a>
+        {% else %}
+        <a href="/questions{{ '?subject_id=' ~ subject_id if subject_id else '' }}"
+           class="btn btn-primary" id="btn-back-list">Voltar à lista</a>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+let answered = false;
+
+function checkAnswer(selected, isCorrect) {
+  if (answered) return;
+  answered = true;
+
+  // Desabilita todos os labels
+  document.querySelectorAll('.option-label').forEach(el => {
+    el.style.cursor = 'default';
+    el.style.pointerEvents = 'none';
+  });
+
+  // Seleciona visualmente
+  const selectedEl = document.getElementById(`opt-${selected}`);
+  if (selectedEl) selectedEl.classList.add('selected');
+
+  // Colorir correto/errado
+  {% for opt in question.options %}
+  {% if opt.is_correct %}
+  const correctEl = document.getElementById('opt-{{ opt.label }}');
+  if (correctEl) {
+    correctEl.style.background = 'hsla(142,70%,45%,0.15)';
+    correctEl.style.borderColor = 'hsla(142,70%,45%,0.5)';
+    correctEl.style.color = 'var(--brand-success)';
+  }
+  {% endif %}
+  {% endfor %}
+
+  if (!isCorrect) {
+    selectedEl.style.background = 'hsla(0,70%,55%,0.12)';
+    selectedEl.style.borderColor = 'hsla(0,70%,55%,0.4)';
+    selectedEl.style.color = 'var(--brand-danger)';
+  }
+
+  // Badge de feedback
+  const badge = document.getElementById('feedback-badge');
+  if (isCorrect) {
+    badge.textContent = '✅ Resposta Correta!';
+    badge.style.background = 'hsla(142,70%,45%,0.15)';
+    badge.style.color = 'var(--brand-success)';
+    badge.style.border = '1px solid hsla(142,70%,45%,0.3)';
+  } else {
+    badge.textContent = '❌ Resposta Incorreta';
+    badge.style.background = 'hsla(0,70%,55%,0.12)';
+    badge.style.color = 'var(--brand-danger)';
+    badge.style.border = '1px solid hsla(0,70%,55%,0.3)';
+  }
+
+  // Mostra painel de feedback
+  document.getElementById('feedback-panel').style.display = 'block';
+  document.getElementById('feedback-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+</script>
+
+{% endblock %}

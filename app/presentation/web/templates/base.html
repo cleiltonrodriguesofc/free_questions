@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>{% block title %}BACEN Study{% endblock %} — Simulado BACEN/TCE-MA</title>
-  <meta name="description" content="Plataforma de simulados para o concurso BACEN e TCE-MA. Treine questões reais e acompanhe seu desempenho."/>
+  <title>{% block title %}FreeQuestions{% endblock %} — Simulado TCE-MA/BACEN</title>
+  <meta name="description" content="Plataforma de simulados para concursos. Treine questões reais e acompanhe seu desempenho."/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"/>
   <link rel="stylesheet" href="/static/css/style.css"/>
@@ -14,13 +14,13 @@
   <nav class="navbar">
     <a href="/" class="nav-brand">
       <span class="brand-icon">⚡</span>
-      <span>BACEN Study</span>
+      <span>FreeQuestions</span>
     </a>
     <div class="nav-links">
-      <a href="/" class="nav-link {% if request.url.path == '/' %}active{% endif %}">Dashboard</a>
-      <a href="/quiz/exam" class="nav-link btn-exam">🎯 Simulado Completo</a>
-      <a href="/quiz/review" class="nav-link">📝 Revisão de Erros</a>
-      <a href="/questions/" class="nav-link {% if request.url.path.startswith('/questions') %}active{% endif %}">📚 Banco de Questões</a>
+      <a href="/" class="nav-link {% if request.url.path == '/' %}active{% endif %}">Início</a>
+      <a href="/quiz/tce" class="nav-link btn-exam">🏛️ Simulado TCE-MA</a>
+      <a href="/quiz/custom" class="nav-link">✏️ Montar Simulado</a>
+      <a href="/questions/" class="nav-link {% if request.url.path.startswith('/questions') %}active{% endif %}">🗂️ Banco de Questões</a>
       <a href="/stats" class="nav-link {% if request.url.path.startswith('/stats') %}active{% endif %}">📊 Desempenho</a>
       <a href="/logout" class="nav-link nav-logout">Sair</a>
     </div>

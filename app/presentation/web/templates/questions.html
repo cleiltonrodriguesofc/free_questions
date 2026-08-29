@@ -71,24 +71,11 @@
                     <small class="text-muted">{{ q.subject.name }} &bull; {{ q.topic }} &bull; {{ q.source }}</small>
                 </div>
                 <div class="card-body">
-                    <p class="card-text mb-4" style="white-space: pre-wrap;">{{ q.statement }}</p>
+                    <p class="card-text mb-4" style="white-space: pre-wrap;">{{ q.statement | truncate(200) }}</p>
                     
-                    <div class="list-group mb-3">
-                        {% for opt in q.options %}
-                        <div class="list-group-item {% if opt.is_correct %}list-group-item-success{% endif %}">
-                            <strong>{{ opt.label }})</strong> {{ opt.text }}
-                            {% if opt.is_correct %}
-                            <span class="badge bg-success float-end">Gabarito</span>
-                            {% endif %}
-                        </div>
-                        {% endfor %}
-                    </div>
-
-                    {% if q.explanation %}
-                    <div class="alert alert-info mt-3 mb-0">
-                        <strong>Comentário:</strong> {{ q.explanation }}
-                    </div>
-                    {% endif %}
+                    <a href="/questions/{{ q.id }}{% if current_subject_id %}?subject_id={{ current_subject_id }}{% endif %}{% if current_topic %}&topic={{ current_topic }}{% endif %}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-pencil-square"></i> Resolver Questão
+                    </a>
                 </div>
             </div>
             {% endfor %}

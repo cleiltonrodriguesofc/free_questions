@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Dashboard{% endblock %}
+{% block title %}Início{% endblock %}
 {% block content %}
 
 <div class="dashboard-hero">
   <div class="hero-text">
     <h1>Olá, <span>{{ user.username }}</span> 👋</h1>
-    <p>Continue treinando para o BACEN e TCE-MA.</p>
+    <p>Bem-vindo ao FreeQuestions. Continue seu treinamento.</p>
   </div>
   <div class="hero-stats">
     <div class="hero-stat">
@@ -21,10 +21,32 @@
       <div class="label">simulados feitos</div>
     </div>
   </div>
-  <div class="hero-actions">
-    <a href="/quiz/exam" class="btn btn-primary btn-lg" id="btn-full-exam">🎯 Simulado Completo</a>
-    <a href="/quiz/review" class="btn btn-ghost" id="btn-review">📝 Revisão de Erros</a>
-    <a href="/stats" class="btn btn-ghost" id="btn-stats">📊 Ver Desempenho</a>
+
+  <!-- Ações categorizadas -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-top: 1.5rem;">
+    <div style="background: var(--surface-card); border: 1px solid var(--brand-primary); border-radius: 12px; padding: 1.5rem; text-align: center;">
+      <h3 style="font-size: 1rem; color: var(--brand-primary); margin-bottom: 0.5rem;">Modo Prova Real</h3>
+      <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">100 questões proporcionais ao edital.</p>
+      <a href="/quiz/tce" class="btn btn-primary btn-full" id="btn-tce-exam">🏛️ Simulado TCE-MA</a>
+    </div>
+
+    <div style="background: var(--surface-card); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 1.5rem; text-align: center;">
+      <h3 style="font-size: 1rem; color: var(--text-primary); margin-bottom: 0.5rem;">Treino Focado</h3>
+      <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Crie seu próprio filtro de questões.</p>
+      <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+        <a href="/quiz/custom" class="btn btn-accent btn-full" id="btn-custom-exam">✏️ Montar Simulado</a>
+        <a href="/questions" class="btn btn-ghost btn-full" id="btn-bank">🗂️ Banco de Questões</a>
+      </div>
+    </div>
+
+    <div style="background: var(--surface-card); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 1.5rem; text-align: center;">
+      <h3 style="font-size: 1rem; color: var(--text-primary); margin-bottom: 0.5rem;">Acompanhamento</h3>
+      <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Métricas e correção de erros.</p>
+      <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+        <a href="/quiz/review" class="btn btn-ghost btn-full" id="btn-review">📝 Revisar Erros</a>
+        <a href="/stats" class="btn btn-ghost btn-full" id="btn-stats">📊 Desempenho Geral</a>
+      </div>
+    </div>
   </div>
 </div>
 
