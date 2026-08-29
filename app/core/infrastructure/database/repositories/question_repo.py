@@ -66,6 +66,24 @@ class SqliteQuestionRepository(IQuestionRepository):
         rows = q.order_by(func.random()).limit(limit).all()
         return [self._to_entity(r) for r in rows]
 
+    def list_random_multi(self, selections: dict[int, int]) -> list[Question]:
+        """Busca N questões aleatórias de cada subject_id. selections = {subject_id: count}."""
+        import random
+        all_questions: list[Question] = []
+        for subject_id, count in selections.items():
+            if count <= 0:
+                continue
+            rows = (
+                self._db.query(QuestionModel)
+                .filter_by(subject_id=subject_id)
+                .order_by(func.random())
+                .limit(count)
+                .all()
+            )
+            all_questions.extend(self._to_entity(r) for r in rows)
+        random.shuffle(all_questions)
+        return all_questions
+
     def count_by_subject(self, subject_id: int) -> int:
         return self._db.query(func.count(QuestionModel.id)).filter_by(subject_id=subject_id).scalar() or 0
 

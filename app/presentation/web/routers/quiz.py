@@ -17,6 +17,26 @@ router = APIRouter(prefix="/quiz", tags=["quiz"])
 templates = Jinja2Templates(directory="app/presentation/web/templates")
 
 
+# ─── helpers ─────────────────────────────────────────────────────────────────
+
+def _make_uc(db: Session) -> GetQuizUseCase:
+    return GetQuizUseCase(
+        SqliteQuestionRepository(db),
+        SqliteSubjectRepository(db),
+        SqliteAttemptRepository(db),
+    )
+
+
+def _render_quiz(request, result, mode_label):
+    return templates.TemplateResponse("quiz.html", {
+        "request": request,
+        "attempt": result["attempt"],
+        "questions": result["questions"],
+        "subject": result.get("subject"),
+        "mode_label": mode_label,
+    })
+
+
 # ─── Iniciar simulado por disciplina ─────────────────────────────────────────
 
 @router.get("/subject/{subject_id}", response_class=HTMLResponse)
@@ -27,74 +47,94 @@ def start_subject_quiz(
     db: Session = Depends(get_db),
 ):
     user_id = get_current_user_id(request)
-
-    uc = GetQuizUseCase(
-        SqliteQuestionRepository(db),
-        SqliteSubjectRepository(db),
-        SqliteAttemptRepository(db),
-    )
+    uc = _make_uc(db)
     try:
-        result = uc.execute(user_id=user_id, mode="subject", subject_id=subject_id, review_errors=review)
+        result = uc.execute(user_id=user_id, mode="subject",
+                            subject_id=subject_id, review_errors=review)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    return templates.TemplateResponse("quiz.html", {
-        "request": request,
-        "attempt": result["attempt"],
-        "questions": result["questions"],
-        "subject": result["subject"],
-        "mode_label": f"Simulado: {result['subject'].name}" if result["subject"] else "Simulado",
-    })
+    label = f"Simulado: {result['subject'].name}" if result["subject"] else "Simulado"
+    return _render_quiz(request, result, label)
 
 
-# ─── Iniciar simulado completo (estilo prova) ─────────────────────────────────
+# ─── Simulado completo proporcional ──────────────────────────────────────────
 
 @router.get("/exam", response_class=HTMLResponse)
 def start_full_exam(request: Request, db: Session = Depends(get_db)):
     user_id = get_current_user_id(request)
-
-    uc = GetQuizUseCase(
-        SqliteQuestionRepository(db),
-        SqliteSubjectRepository(db),
-        SqliteAttemptRepository(db),
-    )
+    uc = _make_uc(db)
     try:
         result = uc.execute(user_id=user_id, mode="full_exam")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    return _render_quiz(request, result, "Simulado Completo — 100 Questões")
 
-    return templates.TemplateResponse("quiz.html", {
+
+# ─── Simulado TCE (preset) ────────────────────────────────────────────────────
+
+@router.get("/tce", response_class=HTMLResponse)
+def start_tce_exam(request: Request, db: Session = Depends(get_db)):
+    user_id = get_current_user_id(request)
+    uc = _make_uc(db)
+    try:
+        result = uc.execute(user_id=user_id, mode="tce")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return _render_quiz(request, result, "🏛️ Simulado TCE-MA — Formato Real (100q)")
+
+
+# ─── Simulado customizável ────────────────────────────────────────────────────
+
+@router.get("/custom", response_class=HTMLResponse)
+def custom_quiz_form(request: Request, db: Session = Depends(get_db)):
+    get_current_user_id(request)
+    subject_repo = SqliteSubjectRepository(db)
+    question_repo = SqliteQuestionRepository(db)
+    subjects = subject_repo.list_all()
+    # Enriquecer com contagem real de questões
+    for s in subjects:
+        s.question_count = question_repo.count_by_subject(s.id)
+    return templates.TemplateResponse("quiz_custom.html", {
         "request": request,
-        "attempt": result["attempt"],
-        "questions": result["questions"],
-        "subject": None,
-        "mode_label": "Simulado Completo — Estilo Prova",
+        "subjects": subjects,
     })
 
 
-# ─── Iniciar revisão de erros ─────────────────────────────────────────────────
+@router.post("/custom", response_class=HTMLResponse)
+def start_custom_quiz(
+    request: Request,
+    db: Session = Depends(get_db),
+    quantities: str = Form(...),   # JSON: {"subject_id": count, ...}
+):
+    user_id = get_current_user_id(request)
+    try:
+        raw = json.loads(quantities)
+        selections = {int(k): int(v) for k, v in raw.items() if int(v) > 0}
+    except Exception:
+        raise HTTPException(status_code=400, detail="Formato de seleção inválido")
+
+    uc = _make_uc(db)
+    try:
+        result = uc.execute(user_id=user_id, mode="custom", selections=selections)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    total = sum(selections.values())
+    return _render_quiz(request, result, f"✏️ Simulado Customizado — {total} Questões")
+
+
+# ─── Revisão de erros ─────────────────────────────────────────────────────────
 
 @router.get("/review", response_class=HTMLResponse)
 def start_review(request: Request, db: Session = Depends(get_db)):
     user_id = get_current_user_id(request)
-
-    uc = GetQuizUseCase(
-        SqliteQuestionRepository(db),
-        SqliteSubjectRepository(db),
-        SqliteAttemptRepository(db),
-    )
+    uc = _make_uc(db)
     try:
         result = uc.execute(user_id=user_id, mode="review")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-
-    return templates.TemplateResponse("quiz.html", {
-        "request": request,
-        "attempt": result["attempt"],
-        "questions": result["questions"],
-        "subject": None,
-        "mode_label": "Revisão de Erros",
-    })
+    return _render_quiz(request, result, "📝 Revisão de Erros")
 
 
 # ─── Submeter respostas ───────────────────────────────────────────────────────
@@ -107,7 +147,7 @@ def submit_quiz(
     elapsed_s: int = Form(0),
     db: Session = Depends(get_db),
 ):
-    get_current_user_id(request)  # garante autenticação
+    get_current_user_id(request)
     try:
         raw = json.loads(answers_json)
         answers = {int(k): v for k, v in raw.items()}
@@ -116,5 +156,4 @@ def submit_quiz(
 
     uc = SubmitQuizUseCase(SqliteQuestionRepository(db), SqliteAttemptRepository(db))
     uc.execute(attempt_id=attempt_id, answers=answers, elapsed_s=elapsed_s)
-
     return RedirectResponse(f"/result/{attempt_id}", status_code=302)
