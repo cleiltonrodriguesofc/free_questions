@@ -279,6 +279,12 @@ def _parse_block(block: str, source: str, topic: str = "") -> Optional[dict]:
     if len(explanation) > 2000:
         explanation = explanation[:2000] + "…"
 
+    # Aplicar limpeza adicional (palavras coladas e pontuação)
+    statement = clean_extracted_text(statement)
+    explanation = clean_extracted_text(explanation)
+    for o in options:
+        o["text"] = clean_extracted_text(o["text"])
+
     source_found = _extract_source_from_statement(statement, source)
 
     return {
@@ -399,12 +405,18 @@ def _parse_sliding_window(text: str, source: str) -> list[dict]:
                         for o in opts:
                             o["is_correct"] = o["label"] == gab
 
+                    # Limpeza extra
+                    statement = clean_extracted_text(statement)
+                    explanation_text = clean_extracted_text("\n".join(explanation_lines).strip()[:2000])
+                    for o in opts:
+                        o["text"] = clean_extracted_text(o["text"])
+
                     source_found = _extract_source_from_statement(statement, source)
 
                     questions.append({
                         "statement": statement,
                         "options": opts,
-                        "explanation": "\n".join(explanation_lines).strip()[:2000],
+                        "explanation": explanation_text,
                         "source": source_found,
                         "topic": current_topic,
                     })
@@ -425,3 +437,17 @@ def _extract_source_from_statement(statement: str, default_source: str) -> str:
         return banca
         
     return default_source
+
+def clean_extracted_text(text: str) -> str:
+    """
+    Limpa o texto extraído do PDF:
+    1. Adiciona espaço após pontuação colada com letras (ex: 'palavra,outra' -> 'palavra, outra').
+    """
+    if not text:
+        return text
+
+    # Espaço após pontuação (exceto se for número)
+    text = re.sub(r'(?<=[a-zA-Z])([,.;:])(?=[a-zA-Z])', r'\1 ', text)
+    
+    return text
+

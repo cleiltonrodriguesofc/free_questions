@@ -1,7 +1,10 @@
 """
 BACEN Study Simulator
-FastAPI + Clean Architecture + Jinja2 + SQLite
+FastAPI + Clean Architecture + Jinja2 + SQLite/PostgreSQL
 """
+from dotenv import load_dotenv
+load_dotenv()  # carrega .env em desenvolvimento local (no-op em produção)
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse

@@ -1,15 +1,17 @@
 """
 Autenticação simples com sessão assinada via itsdangerous.
 """
+import os
 import bcrypt
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from fastapi import Request, HTTPException, status
 
-SECRET_KEY = "bacen-study-secret-key-change-in-prod"
+SECRET_KEY: str = os.getenv("JWT_SECRET", "bacen-study-secret-INSECURE-dev-only")
 SESSION_COOKIE = "study_session"
 SESSION_MAX_AGE = 60 * 60 * 24 * 7  # 7 dias
 
 _serializer = URLSafeTimedSerializer(SECRET_KEY)
+
 
 
 def hash_password(plain: str) -> str:
