@@ -33,6 +33,12 @@ GABARITO_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Gabarito Certo/Errado
+GABARITO_CE_RE = re.compile(
+    r"(?:gabarito|resposta)\s*[:\-–]\s*(certo|errado|verdadeiro|falso|c|e)",
+    re.IGNORECASE,
+)
+
 # Início de comentário/explicação
 COMMENT_START_RE = re.compile(
     r"^\s*(?:comentário|comentario|justificativa|resolução|resolucao|explicação|explicacao"
@@ -48,6 +54,28 @@ TOPIC_HEADER_RE = re.compile(
 
 # Seção de gabarito tabular: "1. B  2. A  3. C ..."
 GABARITO_TABLE_RE = re.compile(r"(\d+)\s*[\.\-]\s*([AaBbCcDdEe])\b")
+
+# Padrão de cabeçalho de questão: (BANCA/ÓRGÃO/ANO) ou (BANCA - ÓRGÃO - ANO)
+QUESTION_HEADER_RE = re.compile(
+    r"\(([A-Z]{2,20}(?:[/\-–,]\s*[A-Z0-9]{2,30})+(?:[/\-–,]\s*\d{4})?)\)",
+    re.IGNORECASE,
+)
+
+# Padrão de rodapé: página, copyright, URLs, numeração isolada
+FOOTER_LINE_RE = re.compile(
+    r"""(?x)
+    ^\s*p[aá]gina\s+\d+         # Página X
+    | ^\s*\d+\s*$               # Número isolado (numeração de página)
+    | ^\s*www\.\S+              # URL www
+    | ^\s*https?://\S+          # URL http
+    | ©.*direitos               # Copyright
+    | ^\s*\d+\s*/\s*\d+\s*$    # X / Y (paginação)
+    | todos\s+os\s+direitos     # "Todos os direitos reservados"
+    | material\s+de\s+apoio     # Cabeçalho de apostila
+    | ^\s*aula\s+\d+\s*$        # "Aula 01" isolada
+    """,
+    re.IGNORECASE,
+)
 
 
 def extract_questions_from_pdf(pdf_path: str | Path, source_label: str = "") -> list[dict]:
@@ -93,13 +121,26 @@ def _extract_text(path: Path) -> str:
     pages_text = []
     with pdfplumber.open(str(path)) as pdf:
         for page in pdf.pages:
-            # Crop top 8% and bottom 8% to remove headers and footers
-            bbox = (0, float(page.height) * 0.08, float(page.width), float(page.height) * 0.92)
+            # Crop top 12% and bottom 12% to remove headers and footers
+            bbox = (0, float(page.height) * 0.12, float(page.width), float(page.height) * 0.88)
             cropped_page = page.crop(bbox)
             text = cropped_page.extract_text(x_tolerance=2.0, y_tolerance=3.0)
             if text:
-                pages_text.append(text)
+                # Filtrar linhas de rodapé/cabeçalho por regex
+                filtered = _strip_footer_lines(text)
+                if filtered:
+                    pages_text.append(filtered)
     return "\n".join(pages_text)
+
+
+def _strip_footer_lines(text: str) -> str:
+    """Remove linhas típicas de rodapé/cabeçalho identificadas pelo FOOTER_LINE_RE."""
+    cleaned = []
+    for line in text.split("\n"):
+        if FOOTER_LINE_RE.search(line.strip()):
+            continue
+        cleaned.append(line)
+    return "\n".join(cleaned)
 
 
 def _parse_structured(text: str, source: str) -> list[dict]:
@@ -264,7 +305,13 @@ def _parse_block(block: str, source: str, topic: str = "") -> Optional[dict]:
     statement = re.sub(r"http[s]?://\S+", "", statement)
     statement = re.sub(r"www\.\S+", "", statement)
 
-    if not statement or len(options) < 4:
+    # Detectar questão Certo/Errado se não houver opções A-E
+    if not options:
+        options = _make_certo_errado_options(statement, gabarito_label)
+        if not options:
+            return None  # não é C/E nem múltipla escolha
+
+    if not statement or len(options) < 2:
         return None
 
     # ── Marcar gabarito ──
@@ -285,13 +332,14 @@ def _parse_block(block: str, source: str, topic: str = "") -> Optional[dict]:
     for o in options:
         o["text"] = clean_extracted_text(o["text"])
 
-    source_found = _extract_source_from_statement(statement, source)
+    source_found, year_found = _extract_source_and_year(statement, source)
 
     return {
         "statement": statement,
         "options": options[:5],
         "explanation": explanation,
         "source": source_found,
+        "year": year_found,
         "topic": topic,
     }
 
@@ -411,13 +459,14 @@ def _parse_sliding_window(text: str, source: str) -> list[dict]:
                     for o in opts:
                         o["text"] = clean_extracted_text(o["text"])
 
-                    source_found = _extract_source_from_statement(statement, source)
+                    source_found, year_found = _extract_source_and_year(statement, source)
 
                     questions.append({
                         "statement": statement,
                         "options": opts,
                         "explanation": explanation_text,
                         "source": source_found,
+                        "year": year_found,
                         "topic": current_topic,
                     })
                 i = j
@@ -427,16 +476,77 @@ def _parse_sliding_window(text: str, source: str) -> list[dict]:
     return questions
 
 
-def _extract_source_from_statement(statement: str, default_source: str) -> str:
-    # Procura explicitamente por siglas de bancas conhecidas no início do enunciado
-    m = re.search(r"^\s*\(.*?\b(CESPE|CEBRASPE|FGV|FCC|VUNESP|QUADRIX|CESGRANRIO|IDIB|IBFC|IADES)\b.*?\)", statement, re.IGNORECASE)
+def _extract_source_and_year(statement: str, default_source: str) -> tuple[str, Optional[int]]:
+    """
+    Extrai banca (source) e ano a partir do padrão (BANCA/ÓRGÃO/ANO) no início do enunciado.
+    Ex: (CEBRASPE/BACEN/2024) → source='CEBRASPE', year=2024
+    """
+    BANCAS = {"CESPE": "CEBRASPE", "CEBRASPE": "CEBRASPE", "FGV": "FGV",
+              "FCC": "FCC", "VUNESP": "VUNESP", "QUADRIX": "QUADRIX",
+              "CESGRANRIO": "CESGRANRIO", "IDIB": "IDIB", "IBFC": "IBFC",
+              "IADES": "IADES", "ESAF": "ESAF", "AOCP": "AOCP"}
+
+    source = default_source
+    year: Optional[int] = None
+
+    # Padrão (BANCA/ÓRGÃO/ANO) no início do enunciado
+    m = QUESTION_HEADER_RE.search(statement[:200])
     if m:
-        banca = m.group(1).upper()
-        if banca == "CESPE":
-            return "CEBRASPE"
-        return banca
-        
-    return default_source
+        header = m.group(1)
+        parts = re.split(r"[/\-–,]", header)
+        for part in parts:
+            part = part.strip().upper()
+            if part in BANCAS:
+                source = BANCAS[part]
+            elif re.match(r"^\d{4}$", part):
+                year = int(part)
+
+    # Fallback: busca banca no início mesmo sem padrão completo
+    if source == default_source:
+        fb = re.search(
+            r"\b(CESPE|CEBRASPE|FGV|FCC|VUNESP|QUADRIX|CESGRANRIO|IDIB|IBFC|IADES|ESAF|AOCP)\b",
+            statement[:200], re.IGNORECASE
+        )
+        if fb:
+            source = BANCAS.get(fb.group(1).upper(), fb.group(1).upper())
+
+    return source, year
+
+
+def _make_certo_errado_options(statement: str, gabarito_label: Optional[str]) -> list[dict]:
+    """
+    Detecta se a questão é do tipo Certo/Errado e retorna as duas opções.
+    Retorna lista vazia se não for C/E.
+    """
+    # Indicadores de que é uma questão C/E
+    ce_indicators = [
+        r"julgue\s+(o\s+)?(?:o\s+item|os\s+itens|a\s+afirmativa)",
+        r"assinale\s+(certo|errado)",
+        r"\(\s*certo\s*\)",
+        r"\(\s*errado\s*\)",
+        r"afirmativa.*(?:certa|errada|correta|incorreta)",
+    ]
+    is_ce = any(re.search(p, statement, re.IGNORECASE) for p in ce_indicators)
+
+    # Também detectar gabarito C/E explícito no bloco
+    if gabarito_label and gabarito_label.upper() in ("C", "E"):
+        is_ce = True
+
+    if not is_ce:
+        return []
+
+    # Resolver gabarito C/E
+    certo_correct = False
+    errado_correct = False
+    if gabarito_label:
+        g = gabarito_label.upper()
+        certo_correct = g in ("C", "CERTO", "VERDADEIRO")
+        errado_correct = g in ("E", "ERRADO", "FALSO")
+
+    return [
+        {"label": "C", "text": "Certo", "is_correct": certo_correct},
+        {"label": "E", "text": "Errado", "is_correct": errado_correct},
+    ]
 
 def clean_extracted_text(text: str) -> str:
     """

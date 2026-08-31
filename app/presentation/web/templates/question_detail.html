@@ -43,15 +43,32 @@
 
     <!-- Opções -->
     <div class="options-list" id="options-list">
-      {% for opt in question.options %}
-      <label class="option-label" id="opt-{{ opt.label }}"
-             for="radio-{{ opt.label }}"
-             onclick="checkAnswer('{{ opt.label }}', {{ 'true' if opt.is_correct else 'false' }})">
-        <input type="radio" id="radio-{{ opt.label }}" name="answer" value="{{ opt.label }}" style="display:none;"/>
-        <span class="option-key">{{ opt.label }}</span>
-        <span class="option-text">{{ opt.text }}</span>
-      </label>
-      {% endfor %}
+      {% set is_ce = question.options|length == 2 and question.options[0].label == 'C' and question.options[1].label == 'E' %}
+      {% if is_ce %}
+        <!-- Questão Certo/Errado -->
+        <div style="display:flex;gap:1rem;margin-top:0.5rem;">
+          {% for opt in question.options %}
+          <label class="option-label" id="opt-{{ opt.label }}"
+                 for="radio-{{ opt.label }}"
+                 onclick="checkAnswer('{{ opt.label }}', {{ 'true' if opt.is_correct else 'false' }})"
+                 style="flex:1;justify-content:center;padding:1rem;font-size:1rem;font-weight:700;">
+            <input type="radio" id="radio-{{ opt.label }}" name="answer" value="{{ opt.label }}" style="display:none;"/>
+            <span style="font-size:1.3rem;">{{ '✅' if opt.label == 'C' else '❌' }}</span>
+            <span class="option-text">{{ opt.text }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      {% else %}
+        {% for opt in question.options %}
+        <label class="option-label" id="opt-{{ opt.label }}"
+               for="radio-{{ opt.label }}"
+               onclick="checkAnswer('{{ opt.label }}', {{ 'true' if opt.is_correct else 'false' }})">
+          <input type="radio" id="radio-{{ opt.label }}" name="answer" value="{{ opt.label }}" style="display:none;"/>
+          <span class="option-key">{{ opt.label }}</span>
+          <span class="option-text">{{ opt.text }}</span>
+        </label>
+        {% endfor %}
+      {% endif %}
     </div>
 
     <!-- Feedback (oculto até responder) -->

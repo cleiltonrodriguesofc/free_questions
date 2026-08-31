@@ -27,13 +27,14 @@ def _make_uc(db: Session) -> GetQuizUseCase:
     )
 
 
-def _render_quiz(request, result, mode_label):
+def _render_quiz(request, result, mode_label, study_mode: bool = False):
     return templates.TemplateResponse("quiz.html", {
         "request": request,
         "attempt": result["attempt"],
         "questions": result["questions"],
         "subject": result.get("subject"),
         "mode_label": mode_label,
+        "study_mode": study_mode,
     })
 
 
@@ -55,7 +56,7 @@ def start_subject_quiz(
         raise HTTPException(status_code=400, detail=str(e))
 
     label = f"Simulado: {result['subject'].name}" if result["subject"] else "Simulado"
-    return _render_quiz(request, result, label)
+    return _render_quiz(request, result, label, study_mode=True)
 
 
 # ─── Simulado completo proporcional ──────────────────────────────────────────
@@ -121,7 +122,7 @@ def start_custom_quiz(
         raise HTTPException(status_code=400, detail=str(e))
 
     total = sum(selections.values())
-    return _render_quiz(request, result, f"✏️ Simulado Customizado — {total} Questões")
+    return _render_quiz(request, result, f"✏️ Simulado Customizado — {total} Questões", study_mode=True)
 
 
 # ─── Revisão de erros ─────────────────────────────────────────────────────────
@@ -134,7 +135,7 @@ def start_review(request: Request, db: Session = Depends(get_db)):
         result = uc.execute(user_id=user_id, mode="review")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    return _render_quiz(request, result, "📝 Revisão de Erros")
+    return _render_quiz(request, result, "📝 Revisão de Erros", study_mode=True)
 
 
 # ─── Submeter respostas ───────────────────────────────────────────────────────

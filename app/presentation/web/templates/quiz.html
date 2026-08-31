@@ -38,18 +38,51 @@
 
     <div class="question-statement">{{ question.statement }}</div>
 
+    {% set is_ce = question.options|length == 2 and question.options[0].label == 'C' and question.options[1].label == 'E' %}
     <div class="options-list" id="options-{{ question.id }}">
-      {% for option in question.options %}
-      <label class="option-label" id="opt-{{ question.id }}-{{ option.label }}" for="q{{ question.id }}_{{ option.label }}">
-        <input type="radio" id="q{{ question.id }}_{{ option.label }}"
-               name="q_{{ question.id }}" value="{{ option.label }}"
-               data-qid="{{ question.id }}"
-               onchange="selectOption({{ question.id }}, '{{ option.label }}')"/>
-        <span class="option-key">{{ option.label }}</span>
-        <span class="option-text">{{ option.text }}</span>
-      </label>
-      {% endfor %}
+      {% if is_ce %}
+        <div style="display:flex;gap:1rem;margin-top:0.5rem;">
+          {% for option in question.options %}
+          <label class="option-label" id="opt-{{ question.id }}-{{ option.label }}"
+                 for="q{{ question.id }}_{{ option.label }}"
+                 style="flex:1;justify-content:center;padding:1rem;font-weight:700;font-size:1rem;">
+            <input type="radio" id="q{{ question.id }}_{{ option.label }}"
+                   name="q_{{ question.id }}" value="{{ option.label }}"
+                   data-qid="{{ question.id }}"
+                   data-correct="{{ 'true' if option.is_correct else 'false' }}"
+                   onchange="selectOption({{ question.id }}, '{{ option.label }}', {{ 'true' if option.is_correct else 'false' }})"/>
+            <span style="font-size:1.3rem;">{{ '✅' if option.label == 'C' else '❌' }}</span>
+            <span class="option-text">{{ option.text }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      {% else %}
+        {% for option in question.options %}
+        <label class="option-label" id="opt-{{ question.id }}-{{ option.label }}" for="q{{ question.id }}_{{ option.label }}">
+          <input type="radio" id="q{{ question.id }}_{{ option.label }}"
+                 name="q_{{ question.id }}" value="{{ option.label }}"
+                 data-qid="{{ question.id }}"
+                 data-correct="{{ 'true' if option.is_correct else 'false' }}"
+                 onchange="selectOption({{ question.id }}, '{{ option.label }}', {{ 'true' if option.is_correct else 'false' }})"/>
+          <span class="option-key">{{ option.label }}</span>
+          <span class="option-text">{{ option.text }}</span>
+        </label>
+        {% endfor %}
+      {% endif %}
     </div>
+
+    {% if study_mode %}
+    <!-- Feedback imediato (study_mode) -->
+    <div id="feedback-{{ question.id }}" style="display:none;margin-top:1rem;">
+      <div id="badge-{{ question.id }}" style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.4rem 1rem;border-radius:20px;font-weight:700;font-size:0.88rem;"></div>
+      {% if question.explanation %}
+      <div class="answer-explanation" style="margin-top:0.75rem;">
+        <div style="font-size:0.72rem;font-weight:700;color:var(--brand-accent);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem;">💡 Comentário</div>
+        {{ question.explanation }}
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
   </div>
   {% endfor %}
 
@@ -77,9 +110,19 @@
 <script>
 const TOTAL = {{ questions|length }};
 const TIME_LIMIT = {{ attempt.time_limit_s }};
+const STUDY_MODE = {{ 'true' if study_mode else 'false' }};
 const answers = {};
 let currentQ = 1;
 let elapsed = 0;
+
+// Mapa: {question_id: {correct_label, options_map}}
+const QUESTION_META = {
+  {% for q in questions %}
+  {{ q.id }}: {
+    correct: "{{ (q.options | selectattr('is_correct') | first).label if (q.options | selectattr('is_correct') | list) else '' }}",
+  },
+  {% endfor %}
+};
 
 // Construir mapa question_id → índice
 const questionIds = [{% for q in questions %}{{ q.id }}{% if not loop.last %},{% endif %}{% endfor %}];
@@ -129,18 +172,86 @@ function goToQuestion(idx) {
 function nextQuestion() { if (currentQ < TOTAL) goToQuestion(currentQ + 1); }
 function prevQuestion() { if (currentQ > 1) goToQuestion(currentQ - 1); }
 
-function selectOption(qid, label) {
+// Rastrear quais questões já foram respondidas (para study_mode)
+const answeredQuestions = {};
+
+function selectOption(qid, label, isCorrect) {
   answers[qid] = label;
   document.getElementById('answers-json').value = JSON.stringify(answers);
-  // atualizar visual
+
+  // Visual: selecionar
   document.querySelectorAll(`#options-${qid} .option-label`).forEach(el => el.classList.remove('selected'));
   document.getElementById(`opt-${qid}-${label}`).classList.add('selected');
-  // marcar dot como respondido
+
+  // Marcar dot como respondido
   const qIdx = questionIds.indexOf(qid) + 1;
   const dot = document.getElementById(`dot-${qIdx}`);
   if (dot) { dot.classList.remove('current'); dot.classList.add('answered'); }
-  // reatualizar cor do current
   document.getElementById(`dot-${currentQ}`).classList.add('current');
+
+  // Study mode: feedback imediato
+  if (STUDY_MODE && !answeredQuestions[qid]) {
+    answeredQuestions[qid] = true;
+    _showStudyFeedback(qid, label, isCorrect);
+  }
+}
+
+function _showStudyFeedback(qid, selected, isCorrect) {
+  const meta = QUESTION_META[qid];
+  const correct = meta ? meta.correct : '';
+
+  // Colorir todas as opções
+  document.querySelectorAll(`#options-${qid} .option-label`).forEach(el => {
+    el.style.pointerEvents = 'none';
+    el.style.cursor = 'default';
+  });
+
+  // Verde na correta
+  if (correct) {
+    const correctEl = document.getElementById(`opt-${qid}-${correct}`);
+    if (correctEl) {
+      correctEl.style.background = 'hsla(142,70%,45%,0.15)';
+      correctEl.style.borderColor = 'hsla(142,70%,45%,0.5)';
+      correctEl.style.color = 'var(--brand-success)';
+    }
+  }
+
+  // Vermelho na errada (se errou)
+  if (!isCorrect) {
+    const wrongEl = document.getElementById(`opt-${qid}-${selected}`);
+    if (wrongEl) {
+      wrongEl.style.background = 'hsla(0,70%,55%,0.12)';
+      wrongEl.style.borderColor = 'hsla(0,70%,55%,0.4)';
+      wrongEl.style.color = 'var(--brand-danger)';
+    }
+  }
+
+  // Badge de feedback
+  const feedbackEl = document.getElementById(`feedback-${qid}`);
+  const badgeEl = document.getElementById(`badge-${qid}`);
+  if (feedbackEl && badgeEl) {
+    if (isCorrect) {
+      badgeEl.textContent = '✅ Resposta Correta!';
+      badgeEl.style.background = 'hsla(142,70%,45%,0.15)';
+      badgeEl.style.color = 'var(--brand-success)';
+      badgeEl.style.border = '1px solid hsla(142,70%,45%,0.3)';
+    } else {
+      badgeEl.textContent = '❌ Resposta Incorreta';
+      badgeEl.style.background = 'hsla(0,70%,55%,0.12)';
+      badgeEl.style.color = 'var(--brand-danger)';
+      badgeEl.style.border = '1px solid hsla(0,70%,55%,0.3)';
+    }
+    feedbackEl.style.display = 'block';
+    feedbackEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    // Atualizar dot com cor de acerto/erro
+    const qIdx = questionIds.indexOf(qid) + 1;
+    const dot = document.getElementById(`dot-${qIdx}`);
+    if (dot) {
+      dot.classList.remove('answered');
+      dot.classList.add(isCorrect ? 'dot-correct' : 'dot-wrong');
+    }
+  }
 }
 
 function onSubmit() {

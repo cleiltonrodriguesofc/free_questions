@@ -228,6 +228,7 @@ def run_seed():
                     statement=q_data["statement"],
                     explanation=q_data.get("explanation", ""),
                     source=q_data.get("source", ""),
+                    year=q_data.get("year"),
                     topic=q_data.get("topic", ""),
                 )
                 db.add(q_model)

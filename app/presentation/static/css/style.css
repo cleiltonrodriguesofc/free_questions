@@ -451,6 +451,8 @@ h1, h2, h3, h4 { font-weight: 700; line-height: 1.2; }
 }
 .quiz-dot.answered { background: var(--brand-primary); border-color: var(--brand-primary); }
 .quiz-dot.current { background: var(--brand-accent); border-color: var(--brand-accent); }
+.quiz-dot.dot-correct { background: hsla(142,70%,45%,0.9); border-color: hsla(142,70%,35%,1); }
+.quiz-dot.dot-wrong { background: hsla(0,70%,55%,0.9); border-color: hsla(0,70%,45%,1); }
 
 /* ─── Result Page ─────────────────────────────────────────────── */
 .result-hero {
