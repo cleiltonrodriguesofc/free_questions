@@ -38,7 +38,8 @@ class GetQuizUseCase:
         mode: str,
         subject_id: Optional[int] = None,
         review_errors: bool = False,
-        selections: Optional[dict[int, int]] = None,  # para modo custom
+        selections: Optional[dict[int, int]] = None,
+        topic: Optional[str] = None,  # filtro de tópico para modo subject
     ) -> dict:
         """
         mode: "subject" | "full_exam" | "review" | "custom" | "tce"
@@ -58,7 +59,11 @@ class GetQuizUseCase:
                 questions = [self._questions.get_by_id(qid) for qid in wrong_ids[:SUBJECT_QUIZ_QUESTIONS]]
                 questions = [q for q in questions if q]
             else:
-                questions = self._questions.list_random(SUBJECT_QUIZ_QUESTIONS, subject_id=subject_id)
+                questions = self._questions.list_random(
+                    SUBJECT_QUIZ_QUESTIONS,
+                    subject_id=subject_id,
+                    topic=topic,
+                )
             time_limit = SUBJECT_QUIZ_TIME_S
 
         elif mode == "full_exam":

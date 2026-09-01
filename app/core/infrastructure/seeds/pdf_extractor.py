@@ -163,7 +163,9 @@ def _parse_structured(text: str, source: str) -> list[dict]:
         # detectar mudança de tópico dentro do bloco
         topic_match = TOPIC_HEADER_RE.search(block.split("\n")[0])
         if topic_match:
-            current_topic = topic_match.group(1).strip()[:100]
+            new_topic = topic_match.group(1).strip()[:100]
+            if len(new_topic) < 40 and "-" not in new_topic:
+                current_topic = new_topic
 
         parsed = _parse_block(block, source, current_topic)
         if parsed:
@@ -187,8 +189,10 @@ def _detect_first_topic(text: str) -> str:
     for line in text.split("\n")[:30]:
         m = TOPIC_HEADER_RE.match(line.strip())
         if m:
-            return m.group(1).strip()[:100]
-    return ""
+            topic = m.group(1).strip()[:100]
+            if len(topic) < 40 and "-" not in topic:
+                return topic
+    return "Geral"
 
 
 def _split_into_question_blocks(text: str) -> list[tuple[Optional[int], str]]:

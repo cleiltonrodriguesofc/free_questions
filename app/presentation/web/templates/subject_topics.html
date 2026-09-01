@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Temas: {{ subject.name }} - FreeQuestions{% endblock %}
+
+{% block content %}
+<div class="container fade-in">
+    <div class="dashboard-header" style="margin-bottom: 2rem;">
+        <div>
+            <h1 class="page-title">📚 {{ subject.name }}</h1>
+            <p class="page-subtitle" style="margin-top: 0.5rem; opacity: 0.8;">
+                Selecione um tópico específico para focar seus estudos, ou inicie um simulado com todos os temas.
+            </p>
+        </div>
+        
+        <a href="/quiz/subject/{{ subject.id }}" class="btn btn-primary" style="display: flex; align-items: center; gap: 0.5rem;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            Simulado (Todos os Temas)
+        </a>
+    </div>
+
+    {% if topics %}
+    <div class="topics-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem;">
+        {% for t in topics %}
+        <div class="topic-card stat-card" style="display: flex; flex-direction: column; justify-content: space-between; gap: 1.5rem; transition: transform 0.2s ease, box-shadow 0.2s ease;">
+            <div>
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                    <h3 style="margin: 0; font-size: 1.1rem; line-height: 1.4; color: var(--text-color);">{{ t.topic }}</h3>
+                </div>
+                <div class="stat-value" style="font-size: 1rem; color: var(--primary-color);">
+                    {{ t.count }} <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">questões</span>
+                </div>
+            </div>
+            
+            <a href="/quiz/subject/{{ subject.id }}?topic={{ t.topic|urlencode }}" class="btn btn-outline" style="width: 100%; justify-content: center;">
+                Estudar Tópico
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state" style="text-align: center; padding: 4rem 2rem; background: var(--bg-surface); border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">📭</div>
+        <h3 style="margin-bottom: 0.5rem;">Nenhum tópico encontrado</h3>
+        <p style="color: var(--text-muted); margin-bottom: 1.5rem;">
+            Esta disciplina possui {{ total_questions }} questões cadastradas, mas os tópicos específicos ainda não foram mapeados na extração.
+        </p>
+        <a href="/quiz/subject/{{ subject.id }}" class="btn btn-primary">Iniciar Simulado Completo</a>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.topic-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--primary-color);
+}
+</style>
+{% endblock %}

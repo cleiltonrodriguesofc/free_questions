@@ -59,10 +59,12 @@ class SqliteQuestionRepository(IQuestionRepository):
         )
         return [self._to_entity(r) for r in rows]
 
-    def list_random(self, limit: int, subject_id: Optional[int] = None) -> list[Question]:
+    def list_random(self, limit: int, subject_id: Optional[int] = None, topic: Optional[str] = None) -> list[Question]:
         q = self._db.query(QuestionModel)
         if subject_id:
             q = q.filter_by(subject_id=subject_id)
+        if topic:
+            q = q.filter(QuestionModel.topic == topic)
         rows = q.order_by(func.random()).limit(limit).all()
         return [self._to_entity(r) for r in rows]
 
@@ -86,6 +88,24 @@ class SqliteQuestionRepository(IQuestionRepository):
 
     def count_by_subject(self, subject_id: int) -> int:
         return self._db.query(func.count(QuestionModel.id)).filter_by(subject_id=subject_id).scalar() or 0
+
+    def list_topics_by_subject(self, subject_id: int) -> list[dict]:
+        """Retorna tópicos distintos de uma disciplina com contagem de questões."""
+        rows = (
+            self._db.query(
+                QuestionModel.topic,
+                func.count(QuestionModel.id).label("count")
+            )
+            .filter(
+                QuestionModel.subject_id == subject_id,
+                QuestionModel.topic.isnot(None),
+                QuestionModel.topic != "",
+            )
+            .group_by(QuestionModel.topic)
+            .order_by(func.count(QuestionModel.id).desc())
+            .all()
+        )
+        return [{"topic": r.topic, "count": r.count} for r in rows]
 
     def save(self, data: dict) -> Question:
         opts_data = data.pop("options", [])

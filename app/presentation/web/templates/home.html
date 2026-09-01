@@ -66,7 +66,7 @@
       </div>
       <div class="subject-actions">
         <a href="/quiz/subject/{{ s.subject_id }}?review=true" class="btn btn-danger btn-full" style="font-size:0.8rem;padding:0.4rem 0.5rem;" id="btn-review-{{ s.subject_id }}">Revisar Erros</a>
-        <a href="/quiz/subject/{{ s.subject_id }}" class="btn btn-ghost" style="font-size:0.8rem;padding:0.4rem 0.5rem;" id="btn-quiz-{{ s.subject_id }}">Treinar</a>
+        <a href="/quiz/subject/{{ s.subject_id }}/topics" class="btn btn-ghost" style="font-size:0.8rem;padding:0.4rem 0.5rem;" id="btn-quiz-{{ s.subject_id }}">Treinar</a>
       </div>
     </div>
     {% endif %}
@@ -117,7 +117,7 @@
 
       <div class="subject-actions">
         {% if s.question_count > 0 %}
-        <a href="/quiz/subject/{{ s.id }}" class="btn btn-primary btn-full" style="font-size:0.82rem;" id="btn-start-{{ s.id }}">▶ Iniciar Simulado</a>
+        <a href="/quiz/subject/{{ s.id }}/topics" class="btn btn-primary btn-full" style="font-size:0.82rem;" id="btn-start-{{ s.id }}">▶ Iniciar Simulado</a>
         {% if subj_stats and subj_stats.total > 0 %}
         <a href="/quiz/subject/{{ s.id }}?review=true" class="btn btn-ghost" style="font-size:0.82rem;" id="btn-errors-{{ s.id }}">Revisar Erros</a>
         {% endif %}

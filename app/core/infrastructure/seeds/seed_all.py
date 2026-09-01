@@ -60,6 +60,26 @@ def run_seed_all():
                 phase_name = p.name
                 break
 
+        # Traduzir para Português
+        SUBJECTS_PT = {
+            'Administrative Law': 'Direito Administrativo',
+            'Portuguese': 'Português',
+            'Constitutional Law': 'Direito Constitucional',
+            'Math and Logic': 'Raciocínio Lógico e Matemática',
+            'English': 'Inglês',
+            'Statistics': 'Estatística',
+            'Operating Systems': 'Sistemas Operacionais',
+            'Software Engineering': 'Engenharia de Software',
+            'Systems Development': 'Desenvolvimento de Sistemas',
+            'Database and BI': 'Bancos de Dados e BI',
+            'IT Management': 'Governança de TI',
+            'Computer Networks': 'Redes de Computadores',
+            'Ethics': 'Ética',
+            'Economics': 'Economia',
+            'SFN_SPB': 'Sistema Financeiro Nacional'
+        }
+        subject_name = SUBJECTS_PT.get(subject_name, subject_name)
+
         # Tenta obter do cache ou do banco
         if subject_name not in subject_cache:
             existing = db.query(SubjectModel).filter_by(name=subject_name).first()

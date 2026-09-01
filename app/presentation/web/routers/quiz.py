@@ -1,4 +1,5 @@
 import json
+from typing import Optional
 from fastapi import APIRouter, Request, Depends, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -38,24 +39,56 @@ def _render_quiz(request, result, mode_label, study_mode: bool = False):
     })
 
 
-# ─── Iniciar simulado por disciplina ─────────────────────────────────────────
+# ─── Seleção de Tema (antes de iniciar o simulado por disciplina) ─────────────────
+
+@router.get("/subject/{subject_id}/topics", response_class=HTMLResponse)
+def subject_topics(
+    request: Request,
+    subject_id: int,
+    db: Session = Depends(get_db),
+):
+    get_current_user_id(request)
+    subject_repo = SqliteSubjectRepository(db)
+    question_repo = SqliteQuestionRepository(db)
+    subject = subject_repo.get_by_id(subject_id)
+    if not subject:
+        raise HTTPException(status_code=404, detail="Disciplina não encontrada")
+    topics = question_repo.list_topics_by_subject(subject_id)
+    total_questions = question_repo.count_by_subject(subject_id)
+    return templates.TemplateResponse("subject_topics.html", {
+        "request": request,
+        "subject": subject,
+        "topics": topics,
+        "total_questions": total_questions,
+    })
+
+
+# ─── Iniciar simulado por disciplina (com filtro de tópico opcional) ─────────────────
 
 @router.get("/subject/{subject_id}", response_class=HTMLResponse)
 def start_subject_quiz(
     request: Request,
     subject_id: int,
     review: bool = False,
+    topic: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     user_id = get_current_user_id(request)
     uc = _make_uc(db)
     try:
-        result = uc.execute(user_id=user_id, mode="subject",
-                            subject_id=subject_id, review_errors=review)
+        result = uc.execute(
+            user_id=user_id,
+            mode="subject",
+            subject_id=subject_id,
+            review_errors=review,
+            topic=topic,
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
     label = f"Simulado: {result['subject'].name}" if result["subject"] else "Simulado"
+    if topic:
+        label += f" — {topic[:40]}"
     return _render_quiz(request, result, label, study_mode=True)
 
 

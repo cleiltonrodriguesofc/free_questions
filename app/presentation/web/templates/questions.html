@@ -1,110 +1,127 @@
 {% extends "base.html" %}
 
+{% block title %}Banco de Questões - FreeQuestions{% endblock %}
+
 {% block content %}
-<div class="row mb-4">
-    <div class="col-12">
-        <h2 class="fw-bold text-primary mb-3">Banco de Questões</h2>
-        <p class="text-muted">Explore todas as questões disponíveis no sistema.</p>
+<div class="dashboard-hero" style="padding: 1.5rem 2rem; margin-bottom: 1.5rem;">
+    <div class="hero-text">
+        <h1 style="font-size: 1.5rem;">🗂️ Banco de <span>Questões</span></h1>
+        <p>Explore e filtre todas as questões disponíveis no sistema.</p>
     </div>
 </div>
 
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card shadow-sm border-0">
-            <div class="card-body">
-                <form method="GET" action="/questions/" class="row g-3 align-items-end">
-                    <div class="col-md-3">
-                        <label for="subject_id" class="form-label">Disciplina</label>
-                        <select class="form-select" id="subject_id" name="subject_id">
-                            <option value="">Todas as Disciplinas</option>
-                            {% for subject in subjects %}
-                            <option value="{{ subject.id }}" {% if current_subject_id == subject.id %}selected{% endif %}>
-                                {{ subject.name }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label for="topic" class="form-label">Conteúdo (Tópico)</label>
-                        <select class="form-select" id="topic" name="topic">
-                            <option value="">Todos os Conteúdos</option>
-                            {% for t in topics %}
-                            <option value="{{ t }}" {% if current_topic == t %}selected{% endif %}>
-                                {{ t }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label for="source" class="form-label">Banca / Fonte</label>
-                        <select class="form-select" id="source" name="source">
-                            <option value="">Todas as Bancas</option>
-                            {% for s in sources %}
-                            <option value="{{ s }}" {% if current_source == s %}selected{% endif %}>
-                                {{ s }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="bi bi-funnel"></i> Filtrar
-                        </button>
-                    </div>
-                </form>
+<div class="card" style="margin-bottom: 2rem;">
+    <form method="GET" action="/questions/" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; align-items: end;">
+        <div class="form-group" style="margin-bottom: 0;">
+            <label for="subject_id" class="form-label">Disciplina</label>
+            <select class="form-input" id="subject_id" name="subject_id">
+                <option value="">Todas as Disciplinas</option>
+                {% for subject in subjects %}
+                <option value="{{ subject.id }}" {% if current_subject_id == subject.id %}selected{% endif %}>
+                    {{ subject.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+            <label for="topic" class="form-label">Conteúdo (Tópico)</label>
+            <select class="form-input" id="topic" name="topic">
+                <option value="">Todos os Conteúdos</option>
+                {% for t in topics %}
+                <option value="{{ t }}" {% if current_topic == t %}selected{% endif %}>
+                    {{ t }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+            <label for="source" class="form-label">Banca / Fonte</label>
+            <select class="form-input" id="source" name="source">
+                <option value="">Todas as Bancas</option>
+                {% for s in sources %}
+                <option value="{{ s }}" {% if current_source == s %}selected{% endif %}>
+                    {{ s }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+            <button type="submit" class="btn btn-primary btn-full" style="padding: 0.75rem 1rem;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 0.25rem;"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                Filtrar
+            </button>
+        </div>
+    </form>
+</div>
+
+<div style="margin-bottom: 1.5rem; color: var(--text-secondary); font-size: 0.9rem;">
+    Encontradas <strong style="color: var(--text-primary);">{{ total }}</strong> questões. 
+    Página <strong style="color: var(--text-primary);">{{ page }}</strong> de <strong style="color: var(--text-primary);">{{ total_pages }}</strong>.
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 1.25rem;">
+    {% if questions %}
+        {% for q in questions %}
+        <div class="card subject-card" style="display: block; padding: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <span style="background: var(--bg-elevated); border: 1px solid var(--border); padding: 0.2rem 0.6rem; border-radius: var(--radius-sm); font-size: 0.8rem; font-weight: 700; color: var(--text-secondary);">#{{ q.id }}</span>
+                    <span style="font-size: 0.85rem; color: var(--brand-primary-light); font-weight: 600;">{{ q.subject.name }}</span>
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-muted); background: var(--bg-elevated); padding: 0.2rem 0.6rem; border-radius: var(--radius-sm);">
+                    {{ q.topic }} &bull; {{ q.source }}
+                </div>
+            </div>
+            
+            <p style="font-size: 0.95rem; line-height: 1.6; color: var(--text-primary); margin-bottom: 1.5rem; white-space: pre-wrap; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">{{ q.statement }}</p>
+            
+            <div style="display: flex; justify-content: flex-end;">
+                <a href="/questions/{{ q.id }}{% if current_subject_id %}?subject_id={{ current_subject_id }}{% endif %}{% if current_topic %}&topic={{ current_topic|urlencode }}{% endif %}" class="btn btn-ghost" style="font-size: 0.85rem;">
+                    Resolver Questão
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left: 0.25rem;"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+                </a>
             </div>
         </div>
-    </div>
-</div>
-
-<div class="row">
-    <div class="col-12">
-        <p class="mb-3 text-secondary">
-            Encontradas <strong>{{ total }}</strong> questões. Página <strong>{{ page }}</strong> de <strong>{{ total_pages }}</strong>.
-        </p>
-
-        {% if questions %}
-            {% for q in questions %}
-            <div class="card shadow-sm border-0 mb-4">
-                <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                    <span class="badge bg-secondary">#{{ q.id }}</span>
-                    <small class="text-muted">{{ q.subject.name }} &bull; {{ q.topic }} &bull; {{ q.source }}</small>
-                </div>
-                <div class="card-body">
-                    <p class="card-text mb-4" style="white-space: pre-wrap;">{{ q.statement | truncate(200) }}</p>
-                    
-                    <a href="/questions/{{ q.id }}{% if current_subject_id %}?subject_id={{ current_subject_id }}{% endif %}{% if current_topic %}&topic={{ current_topic }}{% endif %}" class="btn btn-outline-primary btn-sm">
-                        <i class="bi bi-pencil-square"></i> Resolver Questão
-                    </a>
-                </div>
-            </div>
-            {% endfor %}
-        {% else %}
-            <div class="alert alert-warning">
-                Nenhuma questão encontrada com os filtros atuais.
-            </div>
-        {% endif %}
-    </div>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state card">
+            <div class="emoji">📭</div>
+            <h3>Nenhuma questão encontrada</h3>
+            <p>Tente ajustar os filtros de disciplina, tópico ou banca.</p>
+        </div>
+    {% endif %}
 </div>
 
 {% if total_pages > 1 %}
-<nav aria-label="Navegação de página" class="mt-4">
-    <ul class="pagination justify-content-center">
-        <!-- Anterior -->
-        <li class="page-item {% if page == 1 %}disabled{% endif %}">
-            <a class="page-link" href="?page={{ page - 1 }}{% if current_subject_id %}&subject_id={{ current_subject_id }}{% endif %}{% if current_topic %}&topic={{ current_topic }}{% endif %}{% if current_source %}&source={{ current_source }}{% endif %}">Anterior</a>
-        </li>
-        
-        <li class="page-item disabled">
-            <span class="page-link">Página {{ page }} de {{ total_pages }}</span>
-        </li>
-        
-        <!-- Próxima -->
-        <li class="page-item {% if page == total_pages %}disabled{% endif %}">
-            <a class="page-link" href="?page={{ page + 1 }}{% if current_subject_id %}&subject_id={{ current_subject_id }}{% endif %}{% if current_topic %}&topic={{ current_topic }}{% endif %}{% if current_source %}&source={{ current_source }}{% endif %}">Próxima</a>
-        </li>
-    </ul>
-</nav>
+<div style="display: flex; justify-content: center; align-items: center; gap: 1rem; margin-top: 2.5rem;">
+    {% if page > 1 %}
+    <a href="?page={{ page - 1 }}{% if current_subject_id %}&subject_id={{ current_subject_id }}{% endif %}{% if current_topic %}&topic={{ current_topic|urlencode }}{% endif %}{% if current_source %}&source={{ current_source|urlencode }}{% endif %}" class="btn btn-ghost">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 0.25rem;"><path d="m15 18-6-6 6-6"></path></svg>
+        Anterior
+    </a>
+    {% else %}
+    <button class="btn btn-ghost" disabled style="opacity: 0.5; cursor: not-allowed;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 0.25rem;"><path d="m15 18-6-6 6-6"></path></svg>
+        Anterior
+    </button>
+    {% endif %}
+    
+    <span style="font-size: 0.9rem; font-weight: 500; color: var(--text-secondary); background: var(--bg-surface); border: 1px solid var(--border); padding: 0.5rem 1rem; border-radius: var(--radius-sm);">
+        {{ page }} de {{ total_pages }}
+    </span>
+    
+    {% if page < total_pages %}
+    <a href="?page={{ page + 1 }}{% if current_subject_id %}&subject_id={{ current_subject_id }}{% endif %}{% if current_topic %}&topic={{ current_topic|urlencode }}{% endif %}{% if current_source %}&source={{ current_source|urlencode }}{% endif %}" class="btn btn-ghost">
+        Próxima
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left: 0.25rem;"><path d="m9 18 6-6-6-6"></path></svg>
+    </a>
+    {% else %}
+    <button class="btn btn-ghost" disabled style="opacity: 0.5; cursor: not-allowed;">
+        Próxima
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left: 0.25rem;"><path d="m9 18 6-6-6-6"></path></svg>
+    </button>
+    {% endif %}
+</div>
 {% endif %}
 
 {% endblock %}
