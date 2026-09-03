@@ -10,6 +10,9 @@ from app.core.infrastructure.database.session import init_db, SessionLocal
 from app.core.infrastructure.database.models import SubjectModel, QuestionModel
 from app.core.infrastructure.seeds.pdf_extractor_v2 import extract_questions_from_pdf
 
+from dotenv import load_dotenv
+load_dotenv()
+
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
