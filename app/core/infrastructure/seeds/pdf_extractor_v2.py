@@ -146,19 +146,22 @@ def extract_questions_from_pdf(pdf_path: str | Path, source_label: str = "") -> 
 
     full_text = "\n".join(raw_pages)
 
+    # Determinar o Tema Principal da Aula
+    lesson_topic = extract_lesson_topic(path)
+    
     # 1. Extrair tabela de gabarito do final do PDF
     gabarito_map = _extract_gabarito_table(full_text)
 
     # 2. Extrair questões comentadas (com gabarito inline)
-    commented = _extract_commented_questions(full_text, source_label)
+    commented = _extract_commented_questions(full_text, source_label, lesson_topic)
 
     # 3. Extrair lista de questões (com tópicos e gabarito via tabela)
-    listed = _extract_listed_questions(full_text, source_label, gabarito_map)
+    listed = _extract_listed_questions(full_text, source_label, gabarito_map, lesson_topic)
 
     # Deduplicar: preferir comentadas (têm explicação)
     all_questions = _deduplicate(commented, listed)
 
-    logger.info(f"  → {len(all_questions)} questões ({len(commented)} comentadas + {len(listed)} da lista) de {path.name}")
+    logger.info(f"  → {len(all_questions)} questões ({len(commented)} comentadas + {len(listed)} da lista) de {path.name} (Tema: {lesson_topic})")
     return all_questions
 
 
@@ -238,7 +241,7 @@ def _extract_gabarito_table(text: str) -> dict[int, str]:
 
 # ─── Questões Comentadas ─────────────────────────────────────────────────────
 
-def _extract_commented_questions(text: str, source: str) -> list[dict]:
+def _extract_commented_questions(text: str, source: str, lesson_topic: str) -> list[dict]:
     """
     Extrai questões da seção de questões comentadas.
     Suporta dois padrões:
@@ -246,7 +249,7 @@ def _extract_commented_questions(text: str, source: str) -> list[dict]:
       2. Por banca: "(FGV/TJ-BA/2015) Enunciado... a) ... Comentários: ... Gabarito: Letra X."
     """
     questions: list[dict] = []
-    current_topic = _detect_first_topic(text)
+    current_topic = lesson_topic
 
     # Estratégia 1: divisão por questão numerada
     blocks = _split_into_blocks(text)
@@ -300,7 +303,7 @@ def _extract_by_banca_blocks(text: str, source: str) -> list[dict]:
     Padrão: "(BANCA/ÓRGÃO/ANO) Enunciado..."
     """
     questions: list[dict] = []
-    current_topic = ""
+    current_topic = lesson_topic
 
     # Dividir texto em blocos por cabeçalho (BANCA/...)
     # Padrões: (FGV/TJ-BA/2015), (STN/Analista...), (2016/FCC/ARSETE/Economista)
@@ -509,7 +512,7 @@ def _parse_commented_block(block: str, source: str, topic: str) -> Optional[dict
 
 # ─── Lista de Questões (seção sem comentários) ────────────────────────────────
 
-def _extract_listed_questions(text: str, source: str, gabarito_map: dict[int, str]) -> list[dict]:
+def _extract_listed_questions(text: str, source: str, gabarito_map: dict[int, str], lesson_topic: str) -> list[dict]:
     """
     Extrai questões da seção de lista (sem comentários).
     Usa cabeçalhos de tópico para associar topic a cada grupo de questões.
@@ -525,7 +528,7 @@ def _extract_listed_questions(text: str, source: str, gabarito_map: dict[int, st
 
     # Extrair tópicos e questões
     questions: list[dict] = []
-    current_topic = ""
+    current_topic = lesson_topic
     lines = list_text.split("\n")
     i = 0
     n_lines = len(lines)
@@ -730,5 +733,31 @@ def _extract_source_year(statement: str, default_source: str) -> tuple[str, Opti
         )
         if fb:
             source = BANCAS.get(fb.group(1).upper(), fb.group(1).upper())
-
+            
     return source, year
+
+def extract_lesson_topic(pdf_path: Path) -> str:
+    """Extrai o tema da aula baseado no índice do PDF."""
+    try:
+        import pdfplumber
+        with pdfplumber.open(str(pdf_path)) as pdf:
+            for page in pdf.pages[:4]:
+                text = page.extract_text()
+                if not text:
+                    continue
+                
+                # Clean up tracking dots
+                text = text.replace('.', '')
+                lines = text.split('\n')
+                for line in lines:
+                    line = line.strip()
+                    nospaces = line.replace(' ', '')
+                    m = re.match(r'^(?:2|02|3|03|1|01)[)\-\.](.+?)(?:\d+$|$)', nospaces)
+                    if m:
+                        topic = m.group(1).strip()
+                        topic = re.sub(r'([a-zà-ú])([A-ZÁ-Ú])', r'\1 \2', topic)
+                        if not re.search(r'abertura|apresentação|considerações|introdução', topic, re.IGNORECASE):
+                            return topic
+    except Exception as e:
+        logger.error(f"Erro ao extrair tópico de {pdf_path}: {e}")
+    return "Geral"
