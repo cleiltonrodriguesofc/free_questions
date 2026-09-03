@@ -17,7 +17,7 @@ templates = Jinja2Templates(directory="app/presentation/web/templates")
 
 @router.get("/", response_class=HTMLResponse)
 def home(request: Request, db: Session = Depends(get_db)):
-    user_id = get_optional_user_id(request)
+    user_id = get_optional_user_id(request, db)
     if not user_id:
         return RedirectResponse("/login", status_code=302)
 
@@ -38,9 +38,17 @@ def home(request: Request, db: Session = Depends(get_db)):
             phases[s.phase] = []
         phases[s.phase].append(s)
 
+    from app.core.infrastructure.database.models import SpacedReviewModel
+    from datetime import datetime
+    pending_reviews = db.query(SpacedReviewModel).filter(
+        SpacedReviewModel.user_id == user_id,
+        SpacedReviewModel.next_review_date <= datetime.utcnow()
+    ).count()
+
     return templates.TemplateResponse("home.html", {
         "request": request,
         "user": user,
         "phases": phases,
         "stats": stats,
+        "pending_reviews": pending_reviews,
     })

@@ -47,7 +47,7 @@ def subject_topics(
     subject_id: int,
     db: Session = Depends(get_db),
 ):
-    get_current_user_id(request)
+    get_current_user_id(request, db)
     subject_repo = SqliteSubjectRepository(db)
     question_repo = SqliteQuestionRepository(db)
     subject = subject_repo.get_by_id(subject_id)
@@ -73,7 +73,7 @@ def start_subject_quiz(
     topic: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
-    user_id = get_current_user_id(request)
+    user_id = get_current_user_id(request, db)
     uc = _make_uc(db)
     try:
         result = uc.execute(
@@ -96,7 +96,7 @@ def start_subject_quiz(
 
 @router.get("/exam", response_class=HTMLResponse)
 def start_full_exam(request: Request, db: Session = Depends(get_db)):
-    user_id = get_current_user_id(request)
+    user_id = get_current_user_id(request, db)
     uc = _make_uc(db)
     try:
         result = uc.execute(user_id=user_id, mode="full_exam")
@@ -109,7 +109,7 @@ def start_full_exam(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/tce", response_class=HTMLResponse)
 def start_tce_exam(request: Request, db: Session = Depends(get_db)):
-    user_id = get_current_user_id(request)
+    user_id = get_current_user_id(request, db)
     uc = _make_uc(db)
     try:
         result = uc.execute(user_id=user_id, mode="tce")
@@ -122,7 +122,7 @@ def start_tce_exam(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/custom", response_class=HTMLResponse)
 def custom_quiz_form(request: Request, db: Session = Depends(get_db)):
-    get_current_user_id(request)
+    get_current_user_id(request, db)
     subject_repo = SqliteSubjectRepository(db)
     question_repo = SqliteQuestionRepository(db)
     subjects = subject_repo.list_all()
@@ -141,7 +141,7 @@ def start_custom_quiz(
     db: Session = Depends(get_db),
     quantities: str = Form(...),   # JSON: {"subject_id": count, ...}
 ):
-    user_id = get_current_user_id(request)
+    user_id = get_current_user_id(request, db)
     try:
         raw = json.loads(quantities)
         selections = {int(k): int(v) for k, v in raw.items() if int(v) > 0}
@@ -162,7 +162,7 @@ def start_custom_quiz(
 
 @router.get("/review", response_class=HTMLResponse)
 def start_review(request: Request, db: Session = Depends(get_db)):
-    user_id = get_current_user_id(request)
+    user_id = get_current_user_id(request, db)
     uc = _make_uc(db)
     try:
         result = uc.execute(user_id=user_id, mode="review")
@@ -181,7 +181,7 @@ def submit_quiz(
     elapsed_s: int = Form(0),
     db: Session = Depends(get_db),
 ):
-    get_current_user_id(request)
+    get_current_user_id(request, db)
     try:
         raw = json.loads(answers_json)
         answers = {int(k): v for k, v in raw.items()}

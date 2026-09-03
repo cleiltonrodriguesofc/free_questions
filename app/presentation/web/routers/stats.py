@@ -17,7 +17,7 @@ templates = Jinja2Templates(directory="app/presentation/web/templates")
 
 @router.get("", response_class=HTMLResponse)
 def stats_page(request: Request, db: Session = Depends(get_db)):
-    user_id = get_current_user_id(request)
+    user_id = get_current_user_id(request, db)
     user = SqliteUserRepository(db).get_by_id(user_id)
     subject_repo = SqliteSubjectRepository(db)
     attempt_repo = SqliteAttemptRepository(db)

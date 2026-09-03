@@ -13,7 +13,7 @@ templates = Jinja2Templates(directory="app/presentation/web/templates")
 
 @router.get("/result/{attempt_id}", response_class=HTMLResponse)
 def show_result(request: Request, attempt_id: int, db: Session = Depends(get_db)):
-    user_id = get_current_user_id(request)
+    user_id = get_current_user_id(request, db)
     attempt_repo = SqliteAttemptRepository(db)
     attempt = attempt_repo.get_attempt(attempt_id)
 

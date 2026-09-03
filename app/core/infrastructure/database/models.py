@@ -96,3 +96,16 @@ class AttemptAnswerModel(Base):
 
     attempt = relationship("QuizAttemptModel", back_populates="answers")
     question = relationship("QuestionModel", back_populates="answers")
+
+class SpacedReviewModel(Base):
+    __tablename__ = "spaced_reviews"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    question_id = Column(Integer, ForeignKey("questions.id"), nullable=False)
+    interval_days = Column(Integer, default=1)
+    next_review_date = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("UserModel")
+    question = relationship("QuestionModel")

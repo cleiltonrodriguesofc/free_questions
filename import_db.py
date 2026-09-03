@@ -74,29 +74,48 @@ def create_tables():
 
 
 
-def import_table(table: str, rows: list[dict], batch_size: int = 100):
-    """Usa uma transação por batch para evitar timeout do session pooler."""
+def import_table(table: str, rows: list[dict], batch_size: int = 2000):
+    """Usa psycopg2.extras.execute_values para inserção em lote muito mais rápida."""
     if not rows:
         print(f"  ⏭️  {table}: vazio, pulando")
         return 0
 
+    import psycopg2.extras
+    
     columns = list(rows[0].keys())
     col_str = ", ".join(f'"{c}"' for c in columns)
-    placeholders = ", ".join(f":{c}" for c in columns)
-    sql = text(
-        f'INSERT INTO {table} ({col_str}) VALUES ({placeholders}) '
-        f'ON CONFLICT DO NOTHING'
-    )
+    
+    # Monta a query ON CONFLICT DO NOTHING
+    sql = f"INSERT INTO {table} ({col_str}) VALUES %s ON CONFLICT DO NOTHING"
 
     inserted = 0
     total_batches = (len(rows) + batch_size - 1) // batch_size
-    for i in range(0, len(rows), batch_size):
-        batch = rows[i:i + batch_size]
-        batch_num = i // batch_size + 1
-        with engine.begin() as conn:          # transação própria por batch
-            conn.execute(sql, batch)
-        inserted += len(batch)
-        print(f"    [{table}] batch {batch_num}/{total_batches} — {inserted}/{len(rows)}", end="\r")
+    
+    # Precisamos usar a conexão nativa psycopg2 diretamente
+    raw_conn = engine.raw_connection()
+    try:
+        with raw_conn.cursor() as cur:
+            for i in range(0, len(rows), batch_size):
+                batch = rows[i:i + batch_size]
+                batch_num = i // batch_size + 1
+                
+                # Prepara os valores como tuplas na ordem correta
+                values_list = []
+                for row in batch:
+                    vals = []
+                    for c in columns:
+                        val = row[c]
+                        if c == "is_correct" and isinstance(val, int):
+                            val = bool(val)
+                        vals.append(val)
+                    values_list.append(tuple(vals))
+                
+                psycopg2.extras.execute_values(cur, sql, values_list, page_size=1000)
+                raw_conn.commit()
+                inserted += len(batch)
+                print(f"    [{table}] batch {batch_num}/{total_batches} — {inserted}/{len(rows)}", end="\r")
+    finally:
+        raw_conn.close()
 
     print(f"  ✅ {table}: {inserted} registros importados           ")
     return inserted

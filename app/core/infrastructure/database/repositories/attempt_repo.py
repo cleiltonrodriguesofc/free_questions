@@ -6,7 +6,7 @@ from sqlalchemy import func
 from app.core.domain.interfaces.attempt_repository import IAttemptRepository
 from app.core.domain.entities.attempt import QuizAttempt, AttemptAnswer
 from app.core.infrastructure.database.models import (
-    QuizAttemptModel, AttemptAnswerModel, QuestionModel, OptionModel, SubjectModel
+    QuizAttemptModel, AttemptAnswerModel, QuestionModel, OptionModel, SubjectModel, SpacedReviewModel
 )
 
 
@@ -130,25 +130,17 @@ class SqliteAttemptRepository(IAttemptRepository):
         }
 
     def get_wrong_questions(self, user_id: int, subject_id: Optional[int] = None) -> list[int]:
-        """Returns question IDs that the user most recently answered wrong."""
-        subq = (
-            self._db.query(
-                AttemptAnswerModel.question_id,
-                func.max(AttemptAnswerModel.id).label("last_id"),
-            )
-            .join(QuizAttemptModel, QuizAttemptModel.id == AttemptAnswerModel.attempt_id)
-            .filter(QuizAttemptModel.user_id == user_id)
-        )
+        """Returns question IDs that are due for spaced repetition review."""
+        query = self._db.query(SpacedReviewModel).filter(SpacedReviewModel.user_id == user_id)
+        
+        # Only fetch reviews that are due today or in the past
+        query = query.filter(SpacedReviewModel.next_review_date <= datetime.utcnow())
+        
         if subject_id:
-            subq = subq.filter(QuizAttemptModel.subject_id == subject_id)
-        subq = subq.group_by(AttemptAnswerModel.question_id).subquery()
-
-        rows = (
-            self._db.query(AttemptAnswerModel)
-            .join(subq, AttemptAnswerModel.id == subq.c.last_id)
-            .filter(AttemptAnswerModel.is_correct == False)  # noqa: E712
-            .all()
-        )
+            query = query.join(QuestionModel, QuestionModel.id == SpacedReviewModel.question_id)
+            query = query.filter(QuestionModel.subject_id == subject_id)
+            
+        rows = query.order_by(SpacedReviewModel.next_review_date.asc()).limit(100).all()
         return [r.question_id for r in rows]
 
     def get_stats_by_topic(self, user_id: int, subject_id: Optional[int] = None) -> list[dict]:

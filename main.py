@@ -5,11 +5,12 @@ FastAPI + Clean Architecture + Jinja2 + SQLite/PostgreSQL
 from dotenv import load_dotenv
 load_dotenv()  # carrega .env em desenvolvimento local (no-op em produção)
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 
-from app.core.infrastructure.database.session import init_db
+from sqlalchemy import text
+from app.core.infrastructure.database.session import init_db, get_db
 from app.presentation.web.routers import auth, home, quiz, results, stats, questions
 
 app = FastAPI(title="BACEN Study Simulator", version="1.0.0", docs_url=None, redoc_url=None)
@@ -32,5 +33,9 @@ def startup():
 
 
 @app.api_route("/health", methods=["GET", "HEAD"])
-def health():
-    return {"status": "ok"}
+def health(db = Depends(get_db)):
+    try:
+        db.execute(text("SELECT 1"))
+        return {"status": "ok"}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}

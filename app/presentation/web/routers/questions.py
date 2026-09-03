@@ -1,7 +1,9 @@
 from typing import Optional
 from fastapi import APIRouter, Depends, Request, Query, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
+from datetime import datetime, timedelta
 
 from app.core.infrastructure.auth import get_current_user_id
 from app.core.infrastructure.database.session import get_db
@@ -24,7 +26,7 @@ def list_questions(
     source: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
-    get_current_user_id(request)
+    get_current_user_id(request, db)
 
     use_case = GetQuestionsUseCase(db)
     filter_options = use_case.get_filter_options()
@@ -54,7 +56,7 @@ def question_detail(
     db: Session = Depends(get_db),
 ):
     """Exibe uma questão individualmente com gabarito imediato ao clicar."""
-    get_current_user_id(request)
+    get_current_user_id(request, db)
 
     q_repo = SqliteQuestionRepository(db)
     question = q_repo.get_by_id(question_id)
@@ -86,5 +88,67 @@ def question_detail(
         "topic": topic,
         "total_in_filter": len(ids),
         "position": idx + 1 if idx >= 0 else 0,
+    })
+
+
+@router.get("/api/subjects/{subject_id}/topics")
+def get_subject_topics(subject_id: int, db: Session = Depends(get_db)):
+    from app.core.infrastructure.database.models import QuestionModel
+    topics = [t[0] for t in db.query(QuestionModel.topic).filter(
+        QuestionModel.subject_id == subject_id,
+        QuestionModel.topic != "",
+        QuestionModel.topic.isnot(None)
+    ).distinct().all()]
+    return {"topics": topics}
+
+class AnswerSubmit(BaseModel):
+    selected_label: str
+
+@router.post("/api/questions/{question_id}/check")
+def check_question_answer(
+    request: Request,
+    question_id: int,
+    payload: AnswerSubmit,
+    db: Session = Depends(get_db)
+):
+    user_id = get_current_user_id(request, db)
+    
+    from app.core.infrastructure.database.models import QuestionModel, OptionModel, SpacedReviewModel
+    
+    question = db.query(QuestionModel).filter_by(id=question_id).first()
+    if not question:
+        raise HTTPException(status_code=404, detail="Questão não encontrada")
+        
+    correct_opt = next((o for o in question.options if o.is_correct), None)
+    is_correct = (correct_opt is not None and correct_opt.label == payload.selected_label)
+    
+    # Atualiza ou cria revisão espaçada
+    review = db.query(SpacedReviewModel).filter_by(user_id=user_id, question_id=question_id).first()
+    
+    if not is_correct:
+        if not review:
+            review = SpacedReviewModel(user_id=user_id, question_id=question_id, interval_days=1)
+            db.add(review)
+        else:
+            review.interval_days = 1
+            review.next_review_date = datetime.utcnow() + timedelta(days=1)
+    else:
+        if review:
+            # Acertou na revisão! Aumenta o espaçamento
+            intervals = [1, 3, 7, 15, 30]
+            try:
+                idx = intervals.index(review.interval_days)
+                next_interval = intervals[idx+1] if idx + 1 < len(intervals) else 30
+            except ValueError:
+                next_interval = 3
+            review.interval_days = next_interval
+            review.next_review_date = datetime.utcnow() + timedelta(days=next_interval)
+            
+    db.commit()
+    
+    return JSONResponse({
+        "is_correct": is_correct,
+        "correct_label": correct_opt.label if correct_opt else None,
+        "explanation": question.explanation
     })
 

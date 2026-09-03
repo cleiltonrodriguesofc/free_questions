@@ -15,8 +15,8 @@ templates = Jinja2Templates(directory="app/presentation/web/templates")
 
 
 @router.get("/login", response_class=HTMLResponse)
-def login_page(request: Request, error: str = ""):
-    user_id = get_optional_user_id(request)
+def login_page(request: Request, error: str = "", db: Session = Depends(get_db)):
+    user_id = get_optional_user_id(request, db)
     if user_id:
         return RedirectResponse("/", status_code=302)
     return templates.TemplateResponse("login.html", {"request": request, "error": error})
@@ -45,8 +45,8 @@ def login_submit(
 
 
 @router.get("/register", response_class=HTMLResponse)
-def register_page(request: Request):
-    user_id = get_optional_user_id(request)
+def register_page(request: Request, db: Session = Depends(get_db)):
+    user_id = get_optional_user_id(request, db)
     if user_id:
         return RedirectResponse("/", status_code=302)
     return templates.TemplateResponse("register.html", {"request": request, "error": ""})
