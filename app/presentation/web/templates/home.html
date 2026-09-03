@@ -85,9 +85,8 @@
 </div>
 {% endif %}
 
-{% for phase_name, subjects in phases.items() %}
 <div class="phase-section">
-  <div class="section-title">{{ phase_name }}</div>
+  <div class="section-title">Disciplinas</div>
   <div class="subjects-grid">
     {% for s in subjects %}
     {% set subj_stats = stats.by_subject | selectattr('subject_id', 'equalto', s.id) | first | default(none) %}
@@ -139,9 +138,8 @@
     {% endfor %}
   </div>
 </div>
-{% endfor %}
 
-{% if not phases %}
+{% if not subjects %}
 <div class="empty-state">
   <div class="emoji">📦</div>
   <p>Nenhuma disciplina encontrada.<br>Execute o seed para carregar as questões.</p>

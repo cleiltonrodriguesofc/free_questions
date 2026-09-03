@@ -31,13 +31,6 @@ def home(request: Request, db: Session = Depends(get_db)):
     stats_uc = GetStatsUseCase(attempt_repo, subject_repo)
     stats = stats_uc.execute(user_id)
 
-    # agrupar por fase
-    phases: dict = {}
-    for s in subjects:
-        if s.phase not in phases:
-            phases[s.phase] = []
-        phases[s.phase].append(s)
-
     from app.core.infrastructure.database.models import SpacedReviewModel
     from datetime import datetime
     pending_reviews = db.query(SpacedReviewModel).filter(
@@ -48,7 +41,7 @@ def home(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("home.html", {
         "request": request,
         "user": user,
-        "phases": phases,
+        "subjects": subjects,
         "stats": stats,
         "pending_reviews": pending_reviews,
     })
