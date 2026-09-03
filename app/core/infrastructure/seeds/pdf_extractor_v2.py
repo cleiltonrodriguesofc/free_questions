@@ -751,7 +751,8 @@ def extract_lesson_topic(pdf_path: Path) -> str:
                     if m:
                         topic = m.group(1).strip()
                         topic = re.sub(r'([a-zà-ú])([A-ZÁ-Ú])', r'\1 \2', topic)
-                        if not re.search(r'abertura|apresentação|considerações|introdução|aviso', topic, re.IGNORECASE):
+                        ignore_words = r'abertura|apresentação|considerações|introdução|aviso|janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro'
+                        if not re.search(ignore_words, topic, re.IGNORECASE):
                             return topic
     except Exception as e:
         logger.error(f"Erro ao extrair tópico de {pdf_path}: {e}")
