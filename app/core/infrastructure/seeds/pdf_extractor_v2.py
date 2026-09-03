@@ -274,7 +274,7 @@ def _extract_commented_questions(text: str, source: str, lesson_topic: str) -> l
         return numbered_commented
 
     # Fallback: divisão por cabeçalho de banca entre parênteses
-    banca_questions = _extract_by_banca_blocks(text, source)
+    banca_questions = _extract_by_banca_blocks(text, source, lesson_topic)
     return banca_questions if banca_questions else numbered_commented
 
 
@@ -297,7 +297,7 @@ def _is_topic_candidate(line: str) -> bool:
     return bool(re.match(r'[A-ZÁÀÂÃÉÊÍÓÔÕÚ]', s))
 
 
-def _extract_by_banca_blocks(text: str, source: str) -> list[dict]:
+def _extract_by_banca_blocks(text: str, source: str, lesson_topic: str) -> list[dict]:
     """
     Extrai questões usando cabeçalhos de banca como delimitador.
     Padrão: "(BANCA/ÓRGÃO/ANO) Enunciado..."

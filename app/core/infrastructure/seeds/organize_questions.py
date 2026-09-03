@@ -17,7 +17,6 @@ MATERIALS_ROOT = PROJECT_ROOT.parent
 
 def run_organizer(use_prod=False):
     if use_prod:
-        from app.core.infrastructure.database.session import engine
         from sqlalchemy import create_engine
         from sqlalchemy.orm import sessionmaker
         
@@ -27,13 +26,14 @@ def run_organizer(use_prod=False):
             return
             
         prod_engine = create_engine(prod_url)
-        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=prod_engine)
+        SessionLocalClass = sessionmaker(autocommit=False, autoflush=False, bind=prod_engine)
         logger.info("=== Usando Banco de Dados ONLINE (Produção) ===")
+        db = SessionLocalClass()
     else:
+        from app.core.infrastructure.database.session import SessionLocal as LocalSession
         init_db()
         logger.info("=== Usando Banco de Dados LOCAL (SQLite) ===")
-
-    db = SessionLocal()
+        db = LocalSession()
 
     logger.info("=== Iniciando Organização de Tópicos nas Questões ===")
 
