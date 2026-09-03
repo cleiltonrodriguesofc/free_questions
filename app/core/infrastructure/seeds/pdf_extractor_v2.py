@@ -624,12 +624,7 @@ def _extract_listed_questions(text: str, source: str, gabarito_map: dict[int, st
             else:
                 current_stmt_lines.append(stripped)
         else:
-            # Detectar cabeçalho de tópico (entre questões)
-            if (not BANCA_HEADER_RE.match(stripped)
-                    and not FOOTER_LINE_RE.search(stripped)
-                    and TOPIC_HEADER_RE.match(stripped)
-                    and len(stripped) > 8):
-                current_topic = stripped[:100]
+            pass
 
         i += 1
 
@@ -741,7 +736,7 @@ def extract_lesson_topic(pdf_path: Path) -> str:
     try:
         import pdfplumber
         with pdfplumber.open(str(pdf_path)) as pdf:
-            for page in pdf.pages[:4]:
+            for page in pdf.pages[:6]:
                 text = page.extract_text()
                 if not text:
                     continue
@@ -752,11 +747,11 @@ def extract_lesson_topic(pdf_path: Path) -> str:
                 for line in lines:
                     line = line.strip()
                     nospaces = line.replace(' ', '')
-                    m = re.match(r'^(?:2|02|3|03|1|01)[)\-\.](.+?)(?:\d+$|$)', nospaces)
+                    m = re.match(r'^(?:[1-9]|0[1-9])[)\-\.]?([A-ZÁÀÂÃÉÊÍÓÔÕÚa-záàâãéêíóôõú].+?)(?:\d+$|$)', nospaces)
                     if m:
                         topic = m.group(1).strip()
                         topic = re.sub(r'([a-zà-ú])([A-ZÁ-Ú])', r'\1 \2', topic)
-                        if not re.search(r'abertura|apresentação|considerações|introdução', topic, re.IGNORECASE):
+                        if not re.search(r'abertura|apresentação|considerações|introdução|aviso', topic, re.IGNORECASE):
                             return topic
     except Exception as e:
         logger.error(f"Erro ao extrair tópico de {pdf_path}: {e}")
